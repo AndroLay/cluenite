@@ -207,6 +207,7 @@ function restart(): void {
   color: var(--case-paper);
   font-family: var(--font-mono);
   font-size: 0.875rem;
+  caret-color: var(--case-amber);
   transition: border-color var(--dur-state) ease;
 }
 .dash-input::placeholder {

@@ -23,6 +23,14 @@ defineProps<{
           <stop offset="0" stop-color="#f5be70" stop-opacity="0.4" />
           <stop offset="1" stop-color="#f5be70" stop-opacity="0" />
         </linearGradient>
+        <radialGradient id="scene-pool" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0" stop-color="#f5be70" stop-opacity="0.22" />
+          <stop offset="1" stop-color="#f5be70" stop-opacity="0" />
+        </radialGradient>
+        <linearGradient id="scene-spill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#b8aaf5" stop-opacity="0.14" />
+          <stop offset="1" stop-color="#b8aaf5" stop-opacity="0" />
+        </linearGradient>
         <pattern id="scene-rain" width="30" height="60" patternUnits="userSpaceOnUse">
           <path d="M5 4 l-3 8 M20 18 l-3 8 M12 36 l-3 8 M26 44 l-3 8" />
         </pattern>
@@ -36,6 +44,9 @@ defineProps<{
       <rect x="0" y="146" width="600" height="5" fill="#223748" />
       <path class="scene-floor" d="M0 151 H600 V200 H0 Z" fill="#0c1826" />
       <path d="M300 151 L-100 200 M300 151 L60 200 M300 151 L200 200 M300 151 L400 200 M300 151 L540 200 M300 151 L700 200" stroke="#1b3145" stroke-width="1" />
+      <!-- Light on the floor: a warm pool under the lamp, a cool spill from the window -->
+      <ellipse cx="300" cy="182" rx="180" ry="24" fill="url(#scene-pool)" />
+      <path d="M40 144 H160 L232 200 H-32 Z" fill="url(#scene-spill)" />
 
       <!-- Window with rain -->
       <rect x="40" y="26" width="120" height="112" fill="#0a1622" />
@@ -83,6 +94,7 @@ defineProps<{
       <!-- Second investigator, standing beside the desk in the lamp light. Turns the head on reveal. -->
       <g class="scene-partner">
         <path d="M246 180 L248 128 Q250 112 262 110 Q274 112 276 128 L278 180 Z" fill="#0f2033" stroke="#2c4256" stroke-width="1" />
+        <rect x="257" y="104" width="10" height="9" fill="#0f2033" />
         <g class="scene-partner-head">
           <circle cx="262" cy="98" r="10.5" fill="#0f2033" stroke="#2c4256" stroke-width="1" />
         </g>
@@ -96,6 +108,7 @@ defineProps<{
 
       <!-- Detective silhouette: head, body, and the arm that holds the magnifier -->
       <path class="scene-body" d="M448 200 L452 146 Q458 124 476 122 Q494 124 500 146 L506 200 Z" fill="#0a1420" />
+      <rect x="471" y="112" width="12" height="14" fill="#0a1420" />
       <g class="scene-head">
         <circle cx="477" cy="106" r="13" fill="#0a1420" />
         <path d="M456 98 H498 L494 102 H460 Z" fill="#0a1420" />
