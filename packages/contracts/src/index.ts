@@ -131,10 +131,10 @@ export const roundSnapshotSchema = z
       .strict(),
     clues: z.array(clueViewSchema),
     verdicts: z.array(verdictChoiceSchema),
+    // The verdict the server accepted. Shown only at reveal. Optional so the engine's
+    // toRoundSnapshot output (which does not set it) still matches the type; the server adds it.
+    chosenVerdictId: z.string().min(1).max(32).nullable().optional(),
     revealText: z.string().nullable(),
   })
   .strict();
 export type RoundSnapshot = z.infer<typeof roundSnapshotSchema>;
-    // The verdict the server accepted. Shown only at reveal. Optional so the engine's
-    // toRoundSnapshot output (which does not set it) still matches the type; the server adds it.
-    chosenVerdictId: z.string().min(1).max(32).nullable().optional(),
