@@ -23,7 +23,7 @@ Latest scope: finish non-frontend implementation and predeploy preparation; **do
 
 The browser E2E fixture owns ports 10000/5173 and was not rerun against the shared listener; no new real-account/browser/OBS acceptance is claimed. The local PostgreSQL cluster recovered committed state from WAL after a native Windows failure; no shared application schema was cleaned. Do not attribute the interrupted unrestricted suite to a passing test run.
 
-Remaining external gates are the deferred Render access, real Twitch app and stable random keys, real OAuth/chat/refresh/revocation, two-channel consent, OBS, and remote recovery. Current production configuration is **not valid** and no deployment was attempted. P2 expansion remains deferred. Publication and CI results will be linked in the predeploy guide after the final source commit is verified.
+Remaining external gates are the deferred Render access, real Twitch app and stable random keys, real OAuth/chat/refresh/revocation, two-channel consent, OBS, and remote recovery. Current production configuration is **not valid** and no deployment was attempted. P2 expansion remains deferred. Backend source [6dd69f1](https://github.com/AndroLay/cluenite/commit/6dd69f10242bf8769c872423071128d1febea852) is published privately and its [Linux/PostgreSQL CI passes](https://github.com/AndroLay/cluenite/actions/runs/41353837869), including frozen install, workspace typecheck/build, all 110 tests in 23 files, and lint. Final scope and ownership are recorded in the [predeploy guide](../operations/BACKEND_PREDEPLOY_2026-11-02.md#published-source-and-final-result).
 
 ## Backend release integration - 2 November 2026
 
