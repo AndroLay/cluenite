@@ -98,65 +98,97 @@ function restart(): void {
 </template>
 
 <style scoped>
+/* Host console: a quieter ledger under the case board. Uses the same --case tokens as the overlay. */
 .dash {
   box-sizing: border-box;
   width: min(600px, 100%);
   display: grid;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid var(--ink-700);
-  border-radius: var(--radius-md);
-  background: var(--ink-800);
-  color: var(--paper-100);
-  font-family: var(--font-sans);
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--case-rule);
+  border-radius: 4px;
+  background: var(--case-panel);
+  color: var(--case-paper);
+  font-family: var(--font-body);
   text-align: left;
 }
 
 .dash-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px 12px;
+  align-items: center;
+  gap: 8px 10px;
 }
 
 .dash-title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
+  margin: 0 auto 0 0;
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .dash-conn,
 .dash-paused,
 .dash-session {
-  font-size: 0.75rem;
-  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border: 1px solid var(--case-rule-strong);
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+  color: var(--case-paper-dim);
+  white-space: nowrap;
 }
 
+.dash-conn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.dash-conn::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
 .dash-conn[data-state="connected"] {
-  color: var(--clue-gold);
+  color: var(--case-confirm);
+  border-color: rgba(183, 198, 211, 0.45);
+}
+.dash-conn[data-state="connecting"] {
+  color: var(--case-amber);
+  border-color: rgba(245, 190, 112, 0.45);
 }
 .dash-conn[data-state="disconnected"] {
-  color: var(--warning-coral);
+  color: var(--case-alert);
+  border-color: rgba(240, 132, 126, 0.55);
 }
 
 .dash-paused {
-  color: var(--clue-gold);
-  font-weight: 700;
+  border-color: var(--case-amber);
+  color: var(--case-amber);
 }
 
 .dash-session {
-  margin-left: auto;
-  opacity: 0.7;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dash-form {
   display: grid;
-  gap: 6px;
+  gap: 8px;
+  margin: 0;
 }
 
 .dash-label {
-  font-size: 0.8125rem;
-  font-weight: 700;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--case-paper-dim);
 }
 
 .dash-row {
@@ -165,39 +197,49 @@ function restart(): void {
 }
 
 .dash-input {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
-  padding: 8px 10px;
-  border: 1px solid var(--ink-700);
-  border-radius: var(--radius-sm);
-  background: var(--ink-900);
-  color: var(--paper-100);
-  font: inherit;
-  font-family: var(--font-mono, ui-monospace, monospace);
+  box-sizing: border-box;
+  padding: 9px 12px;
+  border: 1px solid var(--case-rule-strong);
+  border-radius: var(--radius-slip);
+  background: var(--case-bg);
+  color: var(--case-paper);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  transition: border-color var(--dur-state) ease;
 }
-
-.dash-hint {
-  margin: 0;
-  font-size: 0.75rem;
-  opacity: 0.75;
+.dash-input::placeholder {
+  color: color-mix(in srgb, var(--case-paper-dim) 70%, var(--case-bg));
 }
-
-.dash-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+.dash-input:focus-visible {
+  outline: 2px solid var(--case-amber);
+  outline-offset: 1px;
+  border-color: var(--case-amber);
+}
+.dash-input:disabled {
+  opacity: 0.5;
 }
 
 .dash-button {
-  padding: 8px 12px;
-  border: 1px solid var(--ink-700);
-  border-radius: var(--radius-sm);
-  background: var(--ink-900);
-  color: var(--paper-100);
+  flex: 0 0 auto;
+  appearance: none;
+  padding: 9px 14px;
+  border: 1px solid var(--case-rule-strong);
+  border-radius: var(--radius-slip);
+  background: var(--case-raised);
+  color: var(--case-paper);
   font: inherit;
   font-size: 0.8125rem;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
+  transition:
+    background-color var(--dur-state) ease,
+    border-color var(--dur-state) ease;
+}
+.dash-button:hover:not(:disabled) {
+  border-color: var(--case-paper-dim);
+  background: color-mix(in srgb, var(--case-raised) 85%, var(--case-paper));
 }
 .dash-button:disabled {
   opacity: 0.45;
@@ -205,27 +247,84 @@ function restart(): void {
 }
 .dash-button:focus-visible,
 .dash-input:focus-visible {
-  outline: 2px solid var(--clue-gold);
+  outline: 2px solid var(--case-amber);
   outline-offset: 2px;
 }
+
+.dash-row .dash-button {
+  border-color: var(--case-amber);
+  background: var(--case-amber);
+  color: var(--case-slip-ink);
+}
+.dash-row .dash-button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--case-amber) 88%, var(--case-paper));
+  background: color-mix(in srgb, var(--case-amber) 88%, var(--case-paper));
+}
+
+.dash-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--case-paper-dim);
+}
+.dash-hint code {
+  padding: 1px 5px;
+  border-radius: 2px;
+  background: var(--case-raised);
+  color: var(--case-paper);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.dash-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--case-rule);
+}
+
 .dash-danger {
-  border-color: var(--warning-coral);
-  color: var(--warning-coral);
+  border-color: rgba(240, 132, 126, 0.55);
+  background: transparent;
+  color: var(--case-alert);
+}
+.dash-danger:hover:not(:disabled) {
+  border-color: var(--case-alert);
+  background: rgba(240, 132, 126, 0.08);
 }
 
 .dash-notice {
   margin: 0;
   padding: 8px 10px;
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--case-rule-strong);
+  border-radius: var(--radius-slip);
   font-size: 0.8125rem;
-  overflow-wrap: anywhere;
+  line-height: 1.5;
 }
 .dash-notice[data-tone="ok"] {
-  border: 1px solid var(--clue-gold);
-  color: var(--clue-gold);
+  border-color: rgba(117, 215, 189, 0.5);
+  background: rgba(117, 215, 189, 0.08);
+  color: var(--case-confirm);
 }
 .dash-notice[data-tone="warn"] {
-  border: 1px solid var(--warning-coral);
-  color: var(--warning-coral);
+  border-color: rgba(240, 132, 126, 0.55);
+  background: rgba(240, 132, 126, 0.08);
+  color: var(--case-alert);
+}
+
+@media (max-width: 480px) {
+  .dash {
+    padding: 14px 14px;
+  }
+  .dash-row {
+    flex-wrap: wrap;
+  }
+  .dash-row .dash-input {
+    flex: 1 1 100%;
+  }
+  .dash-row .dash-button {
+    flex: 1 1 100%;
+  }
 }
 </style>

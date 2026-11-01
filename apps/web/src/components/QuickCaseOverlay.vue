@@ -9,6 +9,7 @@ import {
   type QuickClue,
   type QuickStage,
 } from "../quickCase/viewModel";
+import CaseScene from "./CaseScene.vue";
 
 const props = withDefaults(defineProps<{ view: QuickCaseView; muted: boolean; obs?: boolean }>(), {
   obs: false,
@@ -29,10 +30,17 @@ const STAGE_LABEL: Record<QuickStage, string> = {
   reveal: "Reveal",
 };
 const STAGE_HINT: Record<QuickStage, string> = {
-  observe: "Inspect the clues to unlock evidence.",
-  connect: "Select two unlocked clues, then link them.",
-  challenge: "Choose a verdict.",
+  observe: "Inspect a sealed clue to open it as evidence.",
+  connect: "Pick two opened clues, then press Link selected.",
+  challenge: "Choose a verdict to close the case.",
   reveal: "Recap below.",
+};
+// Line icons for the stage track, drawn in a 16×16 box. Stroke only, so they take the text color.
+const STAGE_ICON: Record<QuickStage, string> = {
+  observe: "M7 2.5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Zm3.3 7.8 3 3",
+  connect: "M2.7 4.5a1.8 1.8 0 1 0 3.6 0 1.8 1.8 0 1 0-3.6 0Zm7 7a1.8 1.8 0 1 0 3.6 0 1.8 1.8 0 1 0-3.6 0ZM6 5.6l4 4.8",
+  challenge: "M8 2.2 13.8 8 8 13.8 2.2 8Zm0 3.4v3.2m-1.6-1.6h3.2",
+  reveal: "M1.6 8S3.9 3.7 8 3.7 14.4 8 14.4 8 12.1 12.3 8 12.3 1.6 8 1.6 8Zm4.7 0a1.7 1.7 0 1 0 3.4 0 1.7 1.7 0 1 0-3.4 0Z",
 };
 const CLUE_STATE_TEXT = { locked: "Inspect", unlocked: "Unlocked", linked: "Linked" } as const;
 
@@ -47,6 +55,17 @@ const verdictable = computed(() => props.view.stage === "challenge" && !props.vi
 // Clues the viewer picked for a link. The server checks the link; this is only a selection.
 const selected = ref<string[]>([]);
 const canLink = computed(() => linkable.value && selected.value.length === 2);
+const inspectedCount = computed(() => props.view.clues.filter((clue) => clue.status !== "locked").length);
+// Names the linked pair in text, so the result does not rely on the connector alone.
+const linkSummary = computed(() => {
+  const pair = props.view.clues.filter((clue) => clue.status === "linked").map((clue) => clue.id);
+  return pair.length >= 2 ? `✓ Linked: ${pair.join(" ↔ ")}` : "No link recorded yet.";
+});
+// Says why verdicts are off, instead of only dimming the buttons.
+const verdictNote = computed(() => {
+  if (verdictable.value || props.view.paused || props.view.stage === "reveal") return null;
+  return "Verdicts open after two clues are linked.";
+});
 
 function isInspectable(clue: QuickClue): boolean {
   return clue.status === "locked" && props.view.stage !== "reveal" && !props.view.paused;
@@ -54,8 +73,16 @@ function isInspectable(clue: QuickClue): boolean {
 function isSelectable(clue: QuickClue): boolean {
   return clue.status === "unlocked" && linkable.value;
 }
+// The picked verdict is named only at reveal. Earlier picks never show on the board.
+const chosenVerdict = computed(() => {
+  if (props.view.stage !== "reveal" || props.view.chosenVerdictId === null) return null;
+  return props.view.verdicts.find((verdict) => verdict.id === props.view.chosenVerdictId) ?? null;
+});
 // Preview data is not server-verified, so the stamp must not claim a real solve.
-const stampLabel = computed(() => (props.view.source === "simulation" ? "◇ Simulated verdict" : "✓ Solved"));
+const stampLabel = computed(() => {
+  const base = props.view.source === "simulation" ? "◇ Simulated verdict" : "✓ Solved";
+  return chosenVerdict.value ? `${base}: ${chosenVerdict.value.label}` : base;
+});
 
 const cardEls = new Map<string, HTMLElement>();
 const connectorEl = ref<SVGPathElement | null>(null);
@@ -216,17 +243,19 @@ onBeforeUnmount(() => {
   <section class="qc" :class="{ 'is-obs': props.obs }" aria-labelledby="qc-title">
     <header class="qc-header">
       <div class="qc-heading">
-        <span v-if="view.source === 'simulation'" class="qc-badge">SIMULATION · no Twitch chat</span>
         <h2 id="qc-title">{{ view.title }}</h2>
+        <span v-if="view.source === 'simulation'" class="qc-badge">Simulation · no Twitch chat</span>
       </div>
-      <div class="qc-header-actions">
+      <div class="qc-status">
         <span class="qc-stage" :data-stage="view.stage">{{ STAGE_LABEL[view.stage] }}</span>
         <span class="qc-timer" :data-running="view.timer.running">Time {{ elapsedLabel }}</span>
-        <button type="button" class="qc-button" @click="emit('toggle-mute')">
+        <button v-if="!props.obs" type="button" class="qc-button" @click="emit('toggle-mute')">
           {{ muted ? "Unmute sound" : "Mute sound" }}
         </button>
       </div>
     </header>
+
+    <CaseScene :stage="view.stage" :obs="props.obs ?? false" />
 
     <ol class="qc-steps" aria-label="Case progress">
       <li
@@ -235,12 +264,35 @@ onBeforeUnmount(() => {
         :aria-current="step === view.stage ? 'step' : undefined"
         :data-done="STAGES.indexOf(step) < STAGES.indexOf(view.stage) ? 'true' : undefined"
       >
-        {{ STAGE_LABEL[step] }}
+        <svg class="qc-icon" viewBox="0 0 16 16" aria-hidden="true">
+          <path :d="STAGE_ICON[step]" />
+        </svg>
+        <span>{{ STAGE_LABEL[step] }}</span>
       </li>
     </ol>
 
-    <p class="qc-premise">{{ view.premise }}</p>
-    <p class="qc-question">{{ view.question }}</p>
+    <div class="qc-brief">
+      <p class="qc-premise">{{ view.premise }}</p>
+      <p class="qc-question">{{ view.question }}</p>
+    </div>
+
+    <div class="qc-next">
+      <p class="qc-hint" aria-live="polite">{{ STAGE_HINT[view.stage] }}</p>
+      <dl class="qc-ledger" aria-label="Case counts">
+        <div>
+          <dt>Inspected</dt>
+          <dd>{{ inspectedCount }}/{{ view.clues.length }}</dd>
+        </div>
+        <div>
+          <dt>Linked</dt>
+          <dd>{{ linkedCount }}/2</dd>
+        </div>
+        <div>
+          <dt>Selected</dt>
+          <dd>{{ selected.length }}/2</dd>
+        </div>
+      </dl>
+    </div>
 
     <ul class="qc-clues" aria-label="Clues">
       <li v-for="clue in view.clues" :key="clue.id">
@@ -253,15 +305,17 @@ onBeforeUnmount(() => {
           :ref="(el) => setCardRef(clue.id, el)"
           @click="onCardClick(clue)"
         >
-          <span class="qc-clue-id">{{ clue.id }}</span>
+          <span class="qc-clue-top">
+            <span class="qc-clue-id">{{ clue.id }}</span>
+            <span class="qc-clue-state">{{ selected.includes(clue.id) && clue.status === 'unlocked' ? 'Selected' : (clue.status === 'locked' && !isInspectable(clue) ? 'Sealed' : CLUE_STATE_TEXT[clue.status]) }}</span>
+          </span>
           <span class="qc-clue-label">{{ clue.label }}</span>
-          <span class="qc-clue-state">{{ CLUE_STATE_TEXT[clue.status] }}</span>
           <span class="qc-clue-body">{{ clue.observation ?? clue.teaser }}</span>
         </button>
       </li>
     </ul>
 
-    <div class="qc-link-area">
+    <div class="qc-link">
       <svg
         class="qc-connector"
         :class="{ 'is-linked': linkedCount >= 2 }"
@@ -271,18 +325,21 @@ onBeforeUnmount(() => {
       >
         <path ref="connectorEl" d="M 100 4 C 160 40, 440 40, 500 4" />
       </svg>
-      <p ref="statusEl" class="qc-linked" :class="{ 'is-pending': linkedCount < 2 }">✓ Link recorded</p>
+      <div class="qc-link-row">
+        <p ref="statusEl" class="qc-linked" :class="{ 'is-pending': linkedCount < 2 }">{{ linkSummary }}</p>
+        <button v-if="view.stage !== 'reveal'" type="button" class="qc-action" :disabled="!canLink" @click="onLinkSelected">
+          Link selected ({{ selected.length }}/2)
+        </button>
+      </div>
     </div>
 
-    <div class="qc-actions">
-      <button type="button" class="qc-action" :disabled="!canLink" @click="onLinkSelected">
-        Link selected ({{ selected.length }}/2)
-      </button>
+    <div class="qc-verdicts">
       <button
         v-for="verdict in view.verdicts"
         :key="verdict.id"
         type="button"
-        class="qc-action qc-action-primary"
+        class="qc-verdict"
+        :class="{ 'is-chosen': chosenVerdict?.id === verdict.id }"
         :disabled="!verdictable"
         @click="onVerdict(verdict.id)"
       >
@@ -290,234 +347,696 @@ onBeforeUnmount(() => {
       </button>
     </div>
 
-    <p class="qc-hint" aria-live="polite">{{ STAGE_HINT[view.stage] }}</p>
-    <p v-if="view.paused" class="qc-notice">Paused by the host. Actions are on hold.</p>
+    <p v-if="verdictNote" class="qc-verdict-note">{{ verdictNote }}</p>
+
+    <p v-if="view.paused" class="qc-notice" role="status">Paused by the host. Actions are on hold.</p>
 
     <section ref="panelEl" class="qc-reveal" :hidden="view.stage !== 'reveal'" aria-label="Reveal">
       <p ref="revealTitleEl" class="qc-reveal-title">Reveal</p>
       <p ref="revealBodyEl" class="qc-reveal-body">{{ view.revealText }}</p>
       <div class="qc-reveal-footer">
         <span ref="stampEl" class="qc-stamp">{{ stampLabel }}</span>
-        <button type="button" class="qc-button" @click="skipReveal">Skip</button>
+        <button v-if="!props.obs" type="button" class="qc-button" @click="skipReveal">Skip</button>
       </div>
     </section>
   </section>
 </template>
 
 <style scoped>
+/* Case board: a dark ink panel in a gold frame. Sealed clues are dark cards with a dashed
+   edge, opened clues are paper slips, and linked clues are pinned to the board with teal thread. */
 .qc {
   box-sizing: border-box;
-  width: min(100%, 600px);
-  min-height: 340px;
-  padding: 20px;
+  position: relative;
+  width: 100%;
   display: grid;
-  gap: 12px;
-  align-content: start;
-  border: 1px solid var(--ink-700);
-  border-radius: var(--radius-lg);
-  background: var(--ink-800);
-  color: var(--paper-100);
-  font-family: var(--font-sans);
+  gap: 20px;
+  padding: 26px 22px 22px;
+  border: 1px solid var(--case-gold);
+  border-radius: 4px;
+  background:
+    radial-gradient(560px 240px at 50% -4%, rgba(245, 190, 112, 0.12), transparent 70%),
+    var(--case-panel);
+  box-shadow:
+    inset 0 0 96px rgba(0, 0, 0, 0.5),
+    0 30px 60px -34px rgba(0, 0, 0, 0.9);
+  color: var(--case-paper);
+  font-family: var(--font-body);
   text-align: left;
 }
 
-/* OBS browser source: the panel keeps a dark backing so text stays readable over gameplay,
-   and sits narrower for a 720p canvas. The page behind it is transparent (see App.vue). */
+/* Inner hairline inside the gold frame. Decorative only, so it ignores pointer events. */
+.qc::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 1px solid rgba(245, 190, 112, 0.28);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+/* OBS: the browser source is transparent, so the board keeps a solid dark backing. */
 .qc.is-obs {
-  width: min(100%, 560px);
-  min-height: 0;
-  border-color: transparent;
-  background: rgba(16, 28, 42, 0.88);
+  gap: 14px;
+  padding: 16px;
+  border: 0;
+  border-radius: 0;
+  background: rgba(16, 28, 42, 0.9);
+  box-shadow: none;
+}
+.qc.is-obs::before {
+  display: none;
 }
 
 .qc-header {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   align-items: flex-start;
-  gap: 12px;
+  justify-content: space-between;
+  gap: 12px 16px;
 }
 
-.qc-heading h2 {
-  margin: 4px 0 0;
-  font-size: 1.25rem;
+.qc-heading {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
 }
 
+.qc h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 4vw, 1.9rem);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+/* Rubber stamp: double rule, tilted 2 degrees. Used only for the simulation notice. */
 .qc-badge {
+  justify-self: start;
+  padding: 3px 9px;
+  border: 3px double rgba(245, 190, 112, 0.6);
+  color: var(--case-amber);
+  font-family: var(--font-body);
   font-size: 0.6875rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--warning-coral);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  rotate: -2deg;
 }
 
-.qc-header-actions {
+.qc-status {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
   align-items: center;
-}
-
-.qc-stage {
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--ink-900);
-  background: var(--neutral-blue);
-}
-.qc-stage[data-stage="connect"] { background: var(--proof-teal); }
-.qc-stage[data-stage="challenge"] { background: var(--theory-lilac); }
-.qc-stage[data-stage="reveal"] { background: var(--clue-gold); }
-.qc-timer {
-  font-size: 0.75rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--paper-100);
-  opacity: 0.8;
-}
-.qc-timer[data-running="false"] {
-  opacity: 0.55;
-}
-
-.qc-steps {
-  display: flex;
   gap: 8px;
+}
+
+/* Label tab: the current stage sits on the top gold frame line, like a tab on a folder. */
+.qc-stage {
+  position: absolute;
+  top: -11px;
+  left: 22px;
+  padding: 3px 10px;
+  border: 1px solid var(--case-gold);
+  border-radius: 2px;
+  background: var(--case-panel);
+  color: var(--case-amber);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.qc.is-obs .qc-stage {
+  position: static;
+  top: auto;
+  left: auto;
+}
+
+.qc-timer {
+  color: var(--case-paper-dim);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+.qc-timer[data-running="true"] {
+  color: var(--case-confirm);
+}
+
+/* Stage track: four ruled segments. Done is thread, current is amber, upcoming is dim. */
+.qc-steps {
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 0.75rem;
-  color: var(--neutral-blue);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
-.qc-steps li::before { content: "○ "; }
-.qc-steps li[data-done]::before { content: "● "; color: var(--proof-teal); }
-.qc-steps li[aria-current="step"] { color: var(--paper-100); font-weight: 700; }
-.qc-steps li[aria-current="step"]::before { content: "◉ "; color: var(--clue-gold); }
 
-.qc-premise,
+.qc-steps li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding-top: 13px;
+  color: var(--case-paper-dim);
+  font-family: var(--font-body);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.qc-icon {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.qc-steps li::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 4px;
+  height: 3px;
+  background: var(--case-rule-strong);
+}
+
+.qc-steps li[data-done="true"]::after {
+  background: var(--case-thread);
+}
+
+.qc-steps li[data-done="true"] {
+  color: var(--case-thread);
+}
+
+.qc-steps li[aria-current="step"] {
+  color: var(--case-paper);
+}
+
+.qc-steps li[aria-current="step"]::after {
+  background: var(--case-amber);
+}
+
+.qc-brief {
+  display: grid;
+  gap: 8px;
+}
+
+.qc-premise {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--case-paper-dim);
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  text-wrap: pretty;
+}
+
+/* The question is underlined in teal thread, like a line marked on a case file. */
 .qc-question {
   margin: 0;
-  line-height: 1.5;
+  font-family: var(--font-display);
+  font-size: clamp(1.25rem, 3.6vw, 1.5rem);
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--case-paper);
+  text-wrap: balance;
+  text-decoration: underline;
+  text-decoration-color: var(--case-thread);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.28em;
 }
-.qc-question { font-weight: 700; }
 
+/* Next step: ruled band, not a box, so it does not nest inside the folder. */
+.qc-next {
+  display: grid;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--case-rule-strong);
+  border-bottom: 1px solid var(--case-rule-strong);
+}
+
+.qc-hint {
+  margin: 0;
+  color: var(--case-paper);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.qc-ledger {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+}
+
+.qc-ledger > div {
+  display: flex;
+  gap: 8px;
+}
+
+.qc-ledger dt {
+  color: var(--case-paper-dim);
+}
+
+.qc-ledger dd {
+  margin: 0;
+  color: var(--case-amber);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Clue board: three columns, one column below 480px. */
 .qc-clues {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 12px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+.qc-clues > li {
+  display: flex;
+  min-width: 0;
+}
+
 .qc-clue {
-  width: 100%;
-  height: 100%;
-  min-height: 96px;
+  appearance: none;
+  position: relative;
   display: grid;
-  gap: 4px;
   align-content: start;
-  padding: 10px;
-  border: 1px solid var(--ink-700);
-  border-radius: var(--radius-md);
-  background: var(--ink-900);
-  color: inherit;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 136px;
+  margin: 0;
+  padding: 14px 12px 12px;
+  border: 1px solid var(--case-rule-strong);
+  border-radius: var(--radius-slip);
+  background: var(--case-bg);
+  color: var(--case-paper);
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: border-color var(--motion-fast) var(--ease-enter);
+  transition:
+    transform var(--dur-state) var(--ease-out-expo),
+    background-color var(--dur-state) ease,
+    border-color var(--dur-state) ease,
+    box-shadow var(--dur-state) ease;
 }
-.qc-clue[data-status="unlocked"] { border-color: var(--clue-gold); }
-.qc-clue[data-status="linked"] { border-color: var(--proof-teal); }
-.qc-clue[aria-pressed="true"] { outline: 2px solid var(--clue-gold); outline-offset: 3px; }
-.qc-notice { margin: 0.5rem 0 0; color: var(--clue-gold); font-size: 0.9rem; }
-.qc-clue:disabled { cursor: default; }
-.qc-clue:focus-visible,
-.qc-button:focus-visible,
-.qc-action:focus-visible,
-.qc-skip:focus-visible {
-  outline: 2px solid var(--clue-gold);
-  outline-offset: 2px;
+
+/* Sealed: a dark card with a dashed edge. */
+.qc-clue[data-status="locked"] {
+  border-style: dashed;
+  border-color: var(--case-rule-strong);
+  background: var(--case-bg);
+}
+.qc-clue[data-status="locked"] .qc-clue-body {
+  color: var(--case-paper-dim);
+}
+.qc-clue[data-status="locked"]:not(:disabled):hover {
+  border-color: var(--case-paper-dim);
+  transform: translateY(-2px);
+}
+
+/* Inspected: a paper slip. Picked for a link: an inner amber ring. */
+/* A sealed clue opens once: it slides up from the folder and flashes gold, then settles.
+   "backwards" fill means no end transform is held, so the hover lift still works afterwards. */
+@keyframes clue-open {
+  from {
+    opacity: 0.35;
+    transform: translateY(8px) rotate(-1.2deg);
+    box-shadow: 0 0 0 1px rgba(245, 190, 112, 0.8);
+  }
+  55% {
+    box-shadow:
+      0 0 0 2px rgba(245, 190, 112, 0.55),
+      0 0 24px rgba(245, 190, 112, 0.28);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.qc-clue[data-status="unlocked"] {
+  animation: clue-open 520ms var(--ease-out-expo) backwards;
+  border-color: #cdc6b3;
+  background: var(--case-slip);
+  color: var(--case-slip-ink);
+  box-shadow: 0 14px 20px -16px rgba(0, 0, 0, 0.9);
+}
+.qc-clue[data-status="unlocked"] .qc-clue-body {
+  color: #2a3a4a;
+}
+.qc-clue[data-status="unlocked"] .qc-clue-id {
+  color: #1d6656;
+}
+.qc-clue[data-status="unlocked"] .qc-clue-state {
+  color: #1d6656;
+  border-color: #1d6656;
+}
+.qc-clue[data-status="unlocked"]:not(:disabled):hover {
+  transform: translateY(-2px);
+}
+.qc-clue[aria-pressed="true"] {
+  box-shadow:
+    inset 0 0 0 2px var(--case-amber),
+    0 14px 20px -16px rgba(0, 0, 0, 0.9);
+}
+
+/* Linked: a slip pinned to the board with the thread color. */
+.qc-clue[data-status="linked"] {
+  border-color: var(--case-thread);
+  background: var(--case-slip);
+  color: var(--case-slip-ink);
+  box-shadow: 0 14px 20px -16px rgba(0, 0, 0, 0.9);
+}
+.qc-clue[data-status="linked"] .qc-clue-body {
+  color: #2a3a4a;
+}
+.qc-clue[data-status="linked"] .qc-clue-id {
+  color: var(--case-stamp);
+}
+.qc-clue[data-status="linked"] .qc-clue-state {
+  color: var(--case-stamp);
+  border-color: var(--case-stamp);
+}
+.qc-clue[data-status="linked"]::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  width: 11px;
+  height: 11px;
+  margin-left: -5.5px;
+  border-radius: 50%;
+  background: var(--case-thread);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.6);
+}
+
+/* Paper cards get a deeper bottom edge, like an instant print pinned to the board. */
+.qc-clue[data-status="unlocked"],
+.qc-clue[data-status="linked"] {
+  padding-bottom: 20px;
+}
+
+.qc-clue:disabled {
+  cursor: default;
+}
+
+.qc-clue-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .qc-clue-id {
+  color: var(--case-paper-dim);
+  font-family: var(--font-mono);
   font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--clue-gold);
+  font-weight: 600;
+  letter-spacing: 0.12em;
 }
-.qc-clue-label { font-weight: 700; font-size: 0.875rem; }
-.qc-clue-state { font-size: 0.6875rem; color: var(--neutral-blue); }
-.qc-clue-body { font-size: 0.75rem; line-height: 1.4; color: var(--paper-300); }
 
-.qc-link-area {
+.qc-clue-state {
+  padding: 2px 6px;
+  border: 1px solid var(--case-amber);
+  border-radius: 2px;
+  color: var(--case-amber);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.qc-clue-label {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.qc-clue-body {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+/* Link area: a thread between the pair, the pair named in text, and the link button. */
+.qc-link {
   display: grid;
-  justify-items: center;
-  gap: 2px;
+  gap: 6px;
 }
 
 .qc-connector {
+  display: block;
   width: 100%;
-  height: 40px;
+  height: 36px;
   overflow: visible;
 }
 .qc-connector path {
   fill: none;
-  stroke: var(--proof-teal);
-  stroke-width: 2;
-  stroke-linecap: round;
-  opacity: 0;
+  stroke: var(--case-rule-strong);
+  stroke-width: 1.5px;
+  stroke-dasharray: 5 6;
+  vector-effect: non-scaling-stroke;
 }
-.qc-connector.is-linked path { opacity: 1; }
+.qc-connector.is-linked path {
+  stroke: var(--case-thread);
+  stroke-width: 2px;
+  stroke-dasharray: none;
+}
 
-.qc-linked.is-pending { visibility: hidden; }
+.qc-link-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+}
+
 .qc-linked {
   margin: 0;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--proof-teal);
-  white-space: nowrap;
+  color: var(--case-thread);
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  letter-spacing: 0.02em;
+}
+.qc-linked.is-pending {
+  color: var(--case-paper-dim);
 }
 
-.qc-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
+/* Shared control look: raised chip, amber focus ring. */
 .qc-action,
-.qc-button,
-.qc-skip {
-  border: 1px solid var(--ink-700);
-  border-radius: var(--radius-sm);
-  padding: 8px 12px;
-  background: var(--ink-900);
-  color: var(--paper-100);
+.qc-button {
+  appearance: none;
+  padding: 9px 14px;
+  border: 1px solid var(--case-rule-strong);
+  border-radius: var(--radius-slip);
+  background: var(--case-raised);
+  color: var(--case-paper);
   font: inherit;
   font-size: 0.8125rem;
+  font-weight: 600;
   cursor: pointer;
+  transition:
+    border-color var(--dur-state) ease,
+    background-color var(--dur-state) ease;
 }
-.qc-action:disabled { color: var(--neutral-blue); cursor: default; }
-.qc-action-primary:not(:disabled) { border-color: var(--theory-lilac); }
+.qc-action:hover:not(:disabled),
+.qc-button:hover {
+  border-color: var(--case-paper-dim);
+  background: color-mix(in srgb, var(--case-raised) 85%, var(--case-paper));
+}
+.qc-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+/* Primary call to action: solid gold when it can be used. Placed after the shared hover rule so it wins. */
+.qc-action:not(:disabled) {
+  border-color: var(--case-amber);
+  background: var(--case-amber);
+  color: var(--case-slip-ink);
+  font-weight: 700;
+}
+.qc-action:not(:disabled):hover {
+  border-color: color-mix(in srgb, var(--case-amber) 88%, var(--case-paper));
+  background: color-mix(in srgb, var(--case-amber) 88%, var(--case-paper));
+}
 
-.qc-hint {
+.qc-clue:focus-visible,
+.qc-action:focus-visible,
+.qc-verdict:focus-visible,
+.qc-button:focus-visible {
+  outline: 2px solid var(--case-amber);
+  outline-offset: 3px;
+}
+
+/* Verdicts: amber outlines that fill on hover. Disabled ones turn dashed and dim. */
+.qc-verdicts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--case-rule);
+}
+
+.qc-verdict {
+  appearance: none;
+  flex: 1 1 180px;
+  padding: 12px 16px;
+  border: 1px solid var(--case-amber);
+  border-radius: var(--radius-slip);
+  background: transparent;
+  color: var(--case-amber);
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-state) ease,
+    color var(--dur-state) ease;
+}
+.qc-verdict:hover:not(:disabled) {
+  background: var(--case-amber);
+  color: var(--case-slip-ink);
+}
+.qc-verdict:disabled {
+  border-style: dashed;
+  border-color: var(--case-rule-strong);
+  color: var(--case-paper-dim);
+  cursor: not-allowed;
+}
+/* The verdict the viewer picked stays filled at reveal. The others keep the dashed, dim style. */
+.qc-verdict.is-chosen:disabled {
+  border-style: solid;
+  border-color: var(--case-amber);
+  background: var(--case-amber);
+  color: var(--case-slip-ink);
+  cursor: default;
+}
+
+.qc-verdict-note {
   margin: 0;
+  color: var(--case-paper-dim);
   font-size: 0.8125rem;
-  color: var(--paper-300);
+  line-height: 1.5;
 }
 
+.qc-notice {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid rgba(240, 132, 126, 0.55);
+  border-radius: var(--radius-slip);
+  background: rgba(240, 132, 126, 0.08);
+  color: var(--case-alert);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+/* Reveal: a paper dossier page laid over the board. */
 .qc-reveal {
   display: grid;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid var(--clue-gold);
-  border-radius: var(--radius-md);
-  background: var(--ink-900);
+  gap: 12px;
+  padding: 22px 22px 18px;
+  border-radius: var(--radius-slip);
+  background: var(--case-slip);
+  color: var(--case-slip-ink);
+  box-shadow: 0 22px 34px -22px rgba(0, 0, 0, 0.9);
 }
-.qc-reveal[hidden] { display: none; }
-.qc-reveal-title { margin: 0; font-weight: 700; color: var(--clue-gold); }
-.qc-reveal-body { margin: 0; font-size: 0.875rem; line-height: 1.5; }
+.qc-reveal[hidden] {
+  display: none;
+}
+
+.qc-reveal-title {
+  margin: 0;
+  color: var(--case-slip-ink);
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.qc-reveal-body {
+  margin: 0;
+  max-width: 62ch;
+  color: #2a3a4a;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+
 .qc-reveal-footer {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(20, 32, 46, 0.18);
 }
-.qc-stamp { font-weight: 700; color: var(--proof-teal); }
+
+.qc-reveal .qc-button {
+  background: transparent;
+  border-color: rgba(20, 32, 46, 0.35);
+  color: var(--case-slip-ink);
+}
+.qc-reveal .qc-button:hover {
+  background: rgba(20, 32, 46, 0.08);
+  border-color: var(--case-slip-ink);
+}
+
+/* Verdict stamp. Rotation is set with the individual `rotate` property so GSAP's transform can run. */
+.qc-stamp {
+  display: inline-block;
+  padding: 4px 10px;
+  border: 2px double var(--case-stamp);
+  border-radius: 2px;
+  color: var(--case-stamp);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  rotate: -2deg;
+}
+
+@media (max-width: 480px) {
+  .qc {
+    gap: 16px;
+    padding: 18px 14px 16px;
+  }
+  .qc-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 14px;
+  }
+  .qc-clues {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .qc-clue {
+    min-height: 0;
+  }
+  .qc-verdict {
+    flex-basis: 100%;
+  }
+}
 </style>

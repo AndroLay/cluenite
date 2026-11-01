@@ -38,6 +38,9 @@ export interface QuickCaseView {
   timer: QuickTimer;
   clues: QuickClue[];
   verdicts: QuickVerdict[];
+  // The verdict this page sent and the server accepted. The snapshot does not say which verdict
+  // was picked, so the page sets this. Only the reveal stage shows it.
+  chosenVerdictId: string | null;
   revealText: string | null;
 }
 
@@ -65,6 +68,7 @@ export function quickCaseFromSnapshot(snapshot: RoundSnapshot, receivedAt: numbe
       status: clue.status,
     })),
     verdicts: snapshot.verdicts.map((verdict) => ({ id: verdict.id, label: verdict.label })),
+    chosenVerdictId: null,
     revealText: snapshot.revealText,
   };
 }
@@ -123,6 +127,7 @@ export function createPreviewQuickCase(): QuickCaseView {
       { id: "ROBOT", label: "The cleaning robot R-07" },
       { id: "THIEF", label: "An intruder" },
     ],
+    chosenVerdictId: null,
     revealText: null,
   };
 }

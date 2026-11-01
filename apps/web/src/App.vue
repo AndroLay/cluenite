@@ -4,6 +4,7 @@ import { createSfxPlayer, type SfxCue } from "@cluenite/ui";
 import type { CommandResult, RoundSnapshot, SessionControl } from "@cluenite/contracts";
 import DashboardPanel from "./components/DashboardPanel.vue";
 import QuickCaseOverlay from "./components/QuickCaseOverlay.vue";
+import { createAmbience } from "./audio/ambience";
 import { connectRound, type ConnectionState, type RoundClient } from "./net/roundClient";
 import {
   PREVIEW_OBSERVATION,
@@ -37,8 +38,15 @@ const connection = ref<ConnectionState>(liveMode && sessionId !== null ? "connec
 const notice = ref<{ tone: "ok" | "warn"; text: string } | null>(null);
 const muted = ref(false);
 const sfx = createSfxPlayer();
+// Room tone starts on the first gesture on the page. OBS never creates it, so the stream audio is unchanged.
+const ambience = obsMode ? null : createAmbience();
 
-const currentView = computed<QuickCaseView | null>(() => (liveMode ? liveView.value : previewView.value));
+// Set only after the server accepts a verdict, or after a preview verdict. Merged into the view below.
+const chosenVerdictId = ref<string | null>(null);
+const currentView = computed<QuickCaseView | null>(() => {
+  const base = liveMode ? liveView.value : previewView.value;
+  return base === null ? null : { ...base, chosenVerdictId: chosenVerdictId.value };
+});
 const connectionBanner = computed<string | null>(() => {
   if (!liveMode || sessionError !== null) return null;
   if (connection.value === "connecting") return "Connecting to server…";
@@ -130,6 +138,7 @@ function previewVerdict(verdictId: string): void {
   if (view.stage !== "challenge" || !view.verdicts.some((verdict) => verdict.id === verdictId)) return;
   view.stage = "reveal";
   view.revealText = PREVIEW_REVEAL;
+  chosenVerdictId.value = verdictId;
   cue("reveal");
 }
 
@@ -145,125 +154,259 @@ function onLink(clueA: string, clueB: string): void {
   else previewLink(clueA, clueB);
 }
 
-function onVerdict(verdictId: string): void {
+async function onVerdict(verdictId: string): Promise<void> {
   if (readOnly) return;
-  if (client !== null) void sendCommand(`!solve ${verdictId}`);
-  else previewVerdict(verdictId);
+  if (client === null) {
+    previewVerdict(verdictId);
+    return;
+  }
+  const result = await client.submit(`!solve ${verdictId}`);
+  showResult(result);
+  // A rejected verdict is not remembered, so the reveal never names a pick the server refused.
+  if (result?.code.startsWith("ACCEPTED")) chosenVerdictId.value = verdictId;
 }
 
 function onToggleMute(): void {
   muted.value = !muted.value;
   sfx.setMuted(muted.value);
+  ambience?.setMuted(muted.value);
   void sfx.unlock();
 }
 
 function onReset(): void {
   previewView.value = createPreviewQuickCase();
+  chosenVerdictId.value = null;
 }
 
 onBeforeUnmount(() => {
   document.documentElement.classList.remove("obs-mode");
   client?.close();
   sfx.dispose();
+  ambience?.dispose();
 });
 </script>
 
 <template>
   <main class="shell" :class="{ 'is-obs': obsMode }">
-    <template v-if="!obsMode">
-      <p class="eyebrow">SOCIAL DETECTIVE GAME</p>
-      <h1>Cluenite</h1>
+    <header v-if="!obsMode" class="masthead">
+      <h1>
+        <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="10" cy="10" r="6.5" />
+          <path d="M14.8 14.8 20.5 20.5" />
+        </svg>
+        Cluenite
+      </h1>
       <p class="intro">Periksa petunjuk, hubungkan fakta, lalu buktikan teorimu bersama komunitas.</p>
+      <p class="meta">SOCIAL DETECTIVE GAME</p>
 
-      <p v-if="!liveMode" class="banner" role="note">
+      <p v-if="!liveMode" class="banner note" role="note">
         PRATINJAU UI — data simulasi, bukan chat Twitch dan bukan hasil verifikasi engine
       </p>
-    </template>
+    </header>
 
-    <p v-if="sessionError" class="banner" role="alert">{{ sessionError }}</p>
-    <p v-else-if="connectionBanner" class="banner" role="status">{{ connectionBanner }}</p>
+    <div class="board">
+      <p v-if="sessionError" class="banner" role="alert">{{ sessionError }}</p>
+      <p v-else-if="connectionBanner" class="banner" role="status">{{ connectionBanner }}</p>
 
-    <DashboardPanel
-      v-if="dashboardMode"
-      :session-id="sessionId ?? ''"
-      :connection="connection"
-      :paused="liveView?.paused ?? false"
-      :notice="notice"
-      @command="sendCommand"
-      @control="sendControl"
-    />
+      <DashboardPanel
+        v-if="dashboardMode"
+        :session-id="sessionId ?? ''"
+        :connection="connection"
+        :paused="liveView?.paused ?? false"
+        :notice="notice"
+        @command="sendCommand"
+        @control="sendControl"
+      />
 
-    <QuickCaseOverlay
-      v-if="currentView"
-      :view="currentView"
-      :muted="muted"
-      :obs="obsMode"
-      @inspect="onInspect"
-      @link="onLink"
-      @verdict="onVerdict"
-      @toggle-mute="onToggleMute"
-    />
-    <p v-else-if="!obsMode" class="status">Waiting for the round…</p>
+      <QuickCaseOverlay
+        v-if="currentView"
+        :view="currentView"
+        :muted="muted"
+        :obs="obsMode"
+        @inspect="onInspect"
+        @link="onLink"
+        @verdict="onVerdict"
+        @toggle-mute="onToggleMute"
+      />
+      <p v-else-if="!obsMode" class="status">Waiting for the round…</p>
 
-    <button v-if="!obsMode && !liveMode" type="button" class="reset" @click="onReset">Reset pratinjau</button>
+      <button v-if="!obsMode && !liveMode" type="button" class="reset" @click="onReset">Reset pratinjau</button>
+    </div>
   </main>
 </template>
 
 <style scoped>
+/* Case-file layout: masthead on the left, evidence board on the right from 960px.
+   Single column below that. OBS mode drops all chrome and keeps only the board. */
 .shell {
   box-sizing: border-box;
   min-height: 100vh;
   display: grid;
-  gap: 16px;
+  gap: 32px;
   align-content: start;
-  justify-items: center;
-  padding: 32px 16px;
-  background: var(--ink-900);
-  color: var(--paper-100);
-  font-family: var(--font-sans);
-  text-align: center;
+  justify-items: start;
+  padding: 40px clamp(16px, 5vw, 64px) 56px;
+  color: var(--case-paper);
+  font-family: var(--font-body);
 }
 
-/* OBS mode: no page chrome, transparent background, overlay pinned top-left. */
+/* OBS mode: no page chrome, transparent background, board pinned to the top-left. */
 .shell.is-obs {
   min-height: 0;
-  justify-items: start;
-  align-content: start;
+  gap: 0;
   padding: 0;
   background: transparent;
-  text-align: left;
+}
+
+.masthead {
+  display: grid;
+  gap: 16px;
+  width: 100%;
+  max-width: 540px;
+}
+
+.masthead::before {
+  content: "";
+  display: block;
+  width: 44px;
+  height: 3px;
+  background: var(--case-amber);
+}
+
+h1 {
+  display: flex;
+  align-items: center;
+  gap: 0.16em;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(3.25rem, 10vw, 6rem);
+  font-weight: 600;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  color: var(--case-paper);
+}
+
+/* Logo mark: a gold magnifier beside the wordmark. Stroke only, sized to the cap height. */
+.mark {
+  flex: none;
+  width: 0.62em;
+  height: 0.62em;
+  fill: none;
+  stroke: var(--case-amber);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.intro {
+  margin: 0;
+  max-width: 34ch;
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: var(--case-paper-dim);
+  text-wrap: pretty;
+}
+
+.meta {
+  margin: 4px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  color: var(--case-amber);
+}
+.meta::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--case-rule-strong);
+}
+
+.board {
+  box-sizing: border-box;
+  width: min(100%, 600px);
+  display: grid;
+  gap: 16px;
+  justify-items: start;
+}
+.board > * {
+  max-width: 100%;
 }
 
 .banner {
-  max-width: 600px;
+  box-sizing: border-box;
+  width: 100%;
   margin: 0;
-  padding: 8px 12px;
-  border: 1px dashed var(--warning-coral);
-  border-radius: var(--radius-sm);
-  color: var(--warning-coral);
+  padding: 10px 14px;
+  border: 1px solid rgba(240, 132, 126, 0.55);
+  border-radius: var(--radius-slip);
+  background: rgba(240, 132, 126, 0.08);
+  color: var(--case-alert);
   font-size: 0.8125rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+}
+.banner.note {
+  border-color: rgba(245, 190, 112, 0.5);
+  background: rgba(245, 190, 112, 0.08);
+  color: var(--case-amber);
+}
+.banner[role="status"] {
+  border-color: var(--case-rule-strong);
+  background: transparent;
+  color: var(--case-paper-dim);
 }
 
 .status {
   margin: 0;
-  color: var(--paper-100);
+  color: var(--case-paper-dim);
   font-size: 0.9375rem;
 }
 
 .reset {
-  border: 1px solid var(--ink-700);
-  border-radius: var(--radius-sm);
-  padding: 8px 12px;
-  background: var(--ink-800);
-  color: var(--paper-100);
+  appearance: none;
+  padding: 8px 14px;
+  border: 1px solid var(--case-rule-strong);
+  border-radius: var(--radius-slip);
+  background: transparent;
+  color: var(--case-paper-dim);
   font: inherit;
   font-size: 0.8125rem;
+  font-weight: 600;
   cursor: pointer;
+  transition:
+    border-color var(--dur-state) ease,
+    color var(--dur-state) ease;
+}
+.reset:hover {
+  border-color: var(--case-paper-dim);
+  color: var(--case-paper);
 }
 .reset:focus-visible {
-  outline: 2px solid var(--clue-gold);
-  outline-offset: 2px;
+  outline: 2px solid var(--case-amber);
+  outline-offset: 3px;
+}
+
+@media (min-width: 960px) {
+  .shell:not(.is-obs) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 600px);
+    column-gap: clamp(40px, 6vw, 96px);
+    align-items: start;
+    width: 100%;
+    max-width: 1240px;
+    margin: 0 auto;
+  }
+  .masthead {
+    grid-column: 1;
+    grid-row: 1;
+    position: sticky;
+    top: 40px;
+  }
+  .board {
+    grid-column: 2;
+    grid-row: 1;
+  }
 }
 </style>

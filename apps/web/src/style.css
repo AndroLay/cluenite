@@ -1,17 +1,83 @@
 @import "tailwindcss";
 
-:root {
-  color: #f8fafc;
-  background: #111827;
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+/* Self-hosted faces (latin subset). Fraunces is variable on the weight axis. */
+@font-face {
+  font-family: "Fraunces";
+  src: url("./assets/fonts/fraunces-latin-wght.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
 }
 
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("./assets/fonts/ibm-plex-sans-latin-400.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  src: url("./assets/fonts/ibm-plex-sans-latin-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Cozy cinematic forensics palette, taken from the Cluenite blueprint art board: ink night,
+   stage panels, warm paper, gold for found, teal for verified, coral for refuted.
+   Scoped to the web app; packages/ui tokens are left untouched. */
+:root {
+  --case-bg: #101c2a;
+  --case-panel: #192b3a;
+  --case-raised: #223748;
+  --case-rule: #2c4256;
+  --case-rule-strong: #4e6a82;
+  --case-gold: #f5be70;
+  --case-paper: #f4f0e6;
+  --case-paper-dim: #b7c6d3;
+  --case-slip: #f4f0e6;
+  --case-slip-ink: #14202e;
+  --case-amber: #f5be70;
+  --case-thread: #75d7bd;
+  --case-alert: #f0847e;
+  --case-confirm: #75d7bd;
+  --case-stamp: #1e7060;
+  --case-lilac: #b8aaf5;
+
+  --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+
+  --radius-slip: 3px;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-state: 220ms;
+
+  color-scheme: dark;
+  color: var(--case-paper);
+  background: var(--case-bg);
+  font-family: var(--font-body);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  scrollbar-color: var(--case-rule-strong) var(--case-bg);
+}
+
+/* The desk background lives on body so it covers the whole viewport, not just the shell box. */
 body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
+  background:
+    radial-gradient(1100px 520px at 88% -8%, rgba(245, 190, 112, 0.08), transparent 62%),
+    radial-gradient(900px 480px at -10% 110%, rgba(117, 215, 189, 0.05), transparent 60%),
+    var(--case-bg);
+}
+
+::selection {
+  background: var(--case-amber);
+  color: var(--case-slip-ink);
 }
 
 /* Set by App.vue when ?mode=obs is used as an OBS browser source. */
@@ -20,47 +86,13 @@ html.obs-mode body {
   background: transparent;
 }
 
-.shell {
-  box-sizing: border-box;
-  display: grid;
-  min-height: 100vh;
-  align-content: center;
-  justify-items: center;
-  gap: 1rem;
-  padding: 2rem;
-  text-align: center;
-}
-
-.eyebrow {
-  color: #a3e635;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-}
-
-h1 {
-  margin: 0;
-  font-size: clamp(3rem, 9vw, 6rem);
-}
-
-.intro,
-.status {
-  max-width: 42rem;
-  color: #cbd5e1;
-  line-height: 1.7;
-}
-
-.loop {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.75rem;
-  padding: 0;
-  list-style: none;
-}
-
-.loop li {
-  border: 1px solid #475569;
-  border-radius: 999px;
-  padding: 0.6rem 1rem;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
 }
