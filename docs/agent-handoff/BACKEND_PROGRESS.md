@@ -1,5 +1,29 @@
 # Backend execution progress
 
+## Backend completion before deploy - 2 November 2026
+
+Latest scope: finish non-frontend implementation and predeploy preparation; **do not deploy**. Haiku's frontend and active frontend/reference/architecture handoffs remain separate. The implementation and operator policy are in the [predeploy guide](../operations/BACKEND_PREDEPLOY_2026-11-02.md).
+
+- Closed server work for REQ-FE-005 with fixed-origin browser OAuth outcomes and preserved JSON behavior. The frontend must still confirm `/api/me` and wire result copy.
+- Closed the late-refresh revocation/reauthorization race and stopped-worker resurrection. Credential refresh is conditional on the original active generation; stale validation/subscription work cannot create sockets or revive status.
+- New processed-input receipts omit raw chat arguments while preserving fingerprint-based retries/conflicts. Added bounded retention preview/application and guarded account erasure, including rejected receipt and legacy event actor references.
+- Added early HTTP/API/OAuth and shared per-account mutation budgets, a 16 KiB body cap, generic unexpected error responses, `no-store` API responses, and safe request/error serializers.
+- Added `npm --prefix apps/server run preflight` and `maintenance`. No new dependencies or schema migrations. A clean Vitest configuration now limits concurrency to two workers after the Windows PostgreSQL fixture incident documented in the guide.
+- Independent read-only review confirmed the original stopped-validation reproduction now creates zero sockets after stop. Its two additional findings (multiline route admission bypass and retained input identity during erasure) were reproduced, fixed, and verified with focused regressions.
+
+| Final local check    | Evidence                                                                                                                                                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Full suite           | `vitest run --reporter=dot`: **108 passed, 22 files**, no failures/skips; `.cache/predeploy-final-tests.log`. Real isolated local PostgreSQL, synthetic Twitch boundaries.                                         |
+| Typecheck/build      | `npm run typecheck`, `npm run build`, and server build pass. Current frontend compilation is integration evidence only, not Haiku's visual acceptance.                                                             |
+| Lint                 | Backend source/tests: zero errors/warnings. Workspace: exit 0, zero errors and 651 frontend warnings; no auto-fix or frontend edits.                                                                               |
+| HTTP runtime         | Owned random-port server: readiness, 401, browser unavailable OAuth/cookie clearing, body cap, built English deep links/CSS, JSON 404, clean child teardown.                                                       |
+| Production preflight | CLI executes without network/migrations against synthetic complete configuration. Actual ignored environment exits 1: Twitch ID/secret/callback and all three security keys are missing. No secret values printed. |
+| Review/doc hygiene   | Scoped independent review resolved; affected local links resolve; no tracked `.env`, caches, local data, or build artifacts; explicit backend-only publication allowlist.                                          |
+
+The browser E2E fixture owns ports 10000/5173 and was not rerun against the shared listener; no new real-account/browser/OBS acceptance is claimed. The local PostgreSQL cluster recovered committed state from WAL after a native Windows failure; no shared application schema was cleaned. Do not attribute the interrupted unrestricted suite to a passing test run.
+
+Remaining external gates are the deferred Render access, real Twitch app and stable random keys, real OAuth/chat/refresh/revocation, two-channel consent, OBS, and remote recovery. Current production configuration is **not valid** and no deployment was attempted. P2 expansion remains deferred. Publication and CI results will be linked in the predeploy guide after the final source commit is verified.
+
 ## Backend release integration - 2 November 2026
 
 The user authorized backend completion through deployment, a new private GitHub repository, Andro's Render workspace, and Twitch app registration using Zen. Current evidence, remaining gates, operational ownership, and recovery steps are in the [backend release record](../operations/BACKEND_RELEASE_2026-11-02.md) and [status](../STATUS.md).

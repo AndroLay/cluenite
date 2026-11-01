@@ -72,6 +72,44 @@ describeWithDatabase("Postgres round repository", () => {
     expect(first.paused).toBe(true);
   });
 
+  it("stores sanitized receipts while preserving exact rejected-command retries", async () => {
+    const hostTwitchId = await seedHost();
+    const sessionId = await createActiveSession(hostTwitchId);
+    const marker = "synthetic-private-chat-marker";
+    for (const command of ["!unrelatedbot", "!inspect", "!solve"]) {
+      const input = {
+        sessionId,
+        inputId: randomUUID(),
+        actorTwitchId: "test-viewer",
+        text: `${command} ${marker}`,
+        source: "twitch" as const,
+        channelId: hostTwitchId,
+        originBroadcasterId: hostTwitchId,
+      };
+      const first = await repository.applyInput(input);
+      const retry = await repository.applyInput(input);
+      expect(retry).toEqual(first);
+      expect(
+        (
+          await repository.applyInput({
+            ...input,
+            text: `${command} changed-private-text`,
+          })
+        ).code,
+      ).toBe("IDEMPOTENCY_CONFLICT");
+    }
+    const receipts = await pool.query(
+      "SELECT action_summary, result, request_fingerprint FROM processed_inputs WHERE session_id = $1",
+      [sessionId],
+    );
+    expect(JSON.stringify(receipts.rows)).not.toContain(marker);
+    expect(
+      receipts.rows.every((row) =>
+        /^[a-f0-9]{64}$/.test(row.request_fingerprint),
+      ),
+    ).toBe(true);
+  });
+
   it("returns the original result for a repeated host-control idempotency key", async () => {
     const hostTwitchId = await seedHost();
     const created = await repository.create({

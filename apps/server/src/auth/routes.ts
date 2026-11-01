@@ -1,3 +1,5 @@
+import { sendOAuthOutcome } from "./oauthOutcome.js";
+import { createAdmission } from "../ops/httpPolicy.js";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import {
   acceptCoopInviteSchema,
@@ -105,9 +107,35 @@ export function registerAuthRoutes(options: AuthRoutesOptions): void {
     config.nodeEnv === "production" ||
     config.publicOrigin.protocol === "https:";
 
-  app.get("/api/auth/twitch/start", async (_request, reply) => {
+  const mutations = createAdmission(60, 60_000);
+  const authorizeMutation = async (
+    request: FastifyRequest,
+    reply: import("fastify").FastifyReply,
+  ) => {
+    const host = await authorizeHostMutation(request, reply, sessions, config);
+    if (!host) return null;
+    const admission = mutations.take(host.session.twitchUserId);
+    if (!admission.allowed) {
+      reply
+        .header("retry-after", admission.retryAfter)
+        .header("cache-control", "no-store")
+        .code(429)
+        .send({ error: "rate_limited" });
+      return null;
+    }
+    return host;
+  };
+
+  app.get("/api/auth/twitch/start", async (request, reply) => {
     if (!twitchApi)
-      return reply.code(503).send({ error: "twitch_oauth_not_configured" });
+      return sendOAuthOutcome(
+        request,
+        reply,
+        config,
+        "unavailable",
+        503,
+        "twitch_oauth_not_configured",
+      );
     const state = createOpaqueToken();
     reply.header(
       "set-cookie",
@@ -144,9 +172,17 @@ export function registerAuthRoutes(options: AuthRoutesOptions): void {
           "/api/auth/twitch",
         ),
       );
-      return reply
-        .code(twitchApi ? 400 : 503)
-        .send({ error: "twitch_authorization_failed" });
+      return sendOAuthOutcome(
+        request,
+        reply,
+        config,
+        !twitchApi
+          ? "unavailable"
+          : queryString(request, "error") === "access_denied"
+            ? "denied"
+            : "invalid",
+        twitchApi ? 400 : 503,
+      );
     }
     if (!constantTimeEqual(stateCookie, returnedState)) {
       reply.header(
@@ -157,7 +193,14 @@ export function registerAuthRoutes(options: AuthRoutesOptions): void {
           "/api/auth/twitch",
         ),
       );
-      return reply.code(403).send({ error: "oauth_state_rejected" });
+      return sendOAuthOutcome(
+        request,
+        reply,
+        config,
+        "state_rejected",
+        403,
+        "oauth_state_rejected",
+      );
     }
 
     try {
@@ -200,7 +243,7 @@ export function registerAuthRoutes(options: AuthRoutesOptions): void {
           },
         );
       }
-      return reply.redirect(config.publicOrigin.toString());
+      return sendOAuthOutcome(request, reply, config, "connected");
     } catch (error) {
       request.log.warn(
         { code: safeErrorCode(error) },
@@ -214,7 +257,7 @@ export function registerAuthRoutes(options: AuthRoutesOptions): void {
           "/api/auth/twitch",
         ),
       );
-      return reply.code(502).send({ error: "twitch_authorization_failed" });
+      return sendOAuthOutcome(request, reply, config, "exchange_failed", 502);
     }
   });
 
@@ -280,7 +323,7 @@ export function registerAuthRoutes(options: AuthRoutesOptions): void {
   });
 
   app.post("/api/auth/logout", async (request, reply) => {
-    const host = await authorizeHostMutation(request, reply, sessions, config);
+    const host = await authorizeMutation(request, reply);
     if (!host) return;
     const userId = await sessions.revokeHostSession(getHostCookie(request));
     reply.header(
@@ -299,7 +342,7 @@ export function registerAuthRoutes(options: AuthRoutesOptions): void {
   });
 
   app.post("/api/auth/twitch/disconnect", async (request, reply) => {
-    const host = await authorizeHostMutation(request, reply, sessions, config);
+    const host = await authorizeMutation(request, reply);
     if (!host) return;
     const userId = host.session.twitchUserId;
     const account = await sessions.loadTwitchAccount(userId);
@@ -330,7 +373,7 @@ export function registerAuthRoutes(options: AuthRoutesOptions): void {
   });
 
   app.post("/api/sessions", async (request, reply) => {
-    const host = await authorizeHostMutation(request, reply, sessions, config);
+    const host = await authorizeMutation(request, reply);
     if (!host) return;
     const key = idempotencyKey(request);
     if (!key)
@@ -359,7 +402,7 @@ export function registerAuthRoutes(options: AuthRoutesOptions): void {
   });
 
   app.post("/api/coops/invitations", async (request, reply) => {
-    const host = await authorizeHostMutation(request, reply, sessions, config);
+    const host = await authorizeMutation(request, reply);
     if (!host) return;
     const key = idempotencyKey(request);
     if (!key)
@@ -399,12 +442,7 @@ export function registerAuthRoutes(options: AuthRoutesOptions): void {
   app.post(
     "/api/coops/invitations/:inviteId/accept",
     async (request, reply) => {
-      const host = await authorizeHostMutation(
-        request,
-        reply,
-        sessions,
-        config,
-      );
+      const host = await authorizeMutation(request, reply);
       if (!host) return;
       const params = request.params as Record<string, unknown>;
       const inviteId = coopInviteIdSchema.safeParse(params.inviteId);
@@ -449,12 +487,7 @@ export function registerAuthRoutes(options: AuthRoutesOptions): void {
   app.post(
     "/api/coops/invitations/:inviteId/decline",
     async (request, reply) => {
-      const invitee = await authorizeHostMutation(
-        request,
-        reply,
-        sessions,
-        config,
-      );
+      const invitee = await authorizeMutation(request, reply);
       if (!invitee) return;
       const params = request.params as Record<string, unknown>;
       const inviteId = coopInviteIdSchema.safeParse(params.inviteId);
@@ -497,7 +530,7 @@ export function registerAuthRoutes(options: AuthRoutesOptions): void {
   );
 
   app.post("/api/coops/sessions/:sessionId/rejoin", async (request, reply) => {
-    const host = await authorizeHostMutation(request, reply, sessions, config);
+    const host = await authorizeMutation(request, reply);
     if (!host) return;
     const sessionId = pathSessionId(request);
     if (!sessionId)
@@ -550,7 +583,7 @@ export function registerAuthRoutes(options: AuthRoutesOptions): void {
   });
 
   app.post("/api/sessions/:sessionId/:action", async (request, reply) => {
-    const host = await authorizeHostMutation(request, reply, sessions, config);
+    const host = await authorizeMutation(request, reply);
     if (!host) return;
     const sessionId = pathSessionId(request);
     if (!sessionId)
@@ -576,12 +609,7 @@ export function registerAuthRoutes(options: AuthRoutesOptions): void {
   app.post(
     "/api/sessions/:sessionId/overlay-credential",
     async (request, reply) => {
-      const host = await authorizeHostMutation(
-        request,
-        reply,
-        sessions,
-        config,
-      );
+      const host = await authorizeMutation(request, reply);
       if (!host) return;
       const sessionId = pathSessionId(request);
       const key = idempotencyKey(request);
@@ -632,12 +660,7 @@ export function registerAuthRoutes(options: AuthRoutesOptions): void {
   app.delete(
     "/api/sessions/:sessionId/overlay-credential",
     async (request, reply) => {
-      const host = await authorizeHostMutation(
-        request,
-        reply,
-        sessions,
-        config,
-      );
+      const host = await authorizeMutation(request, reply);
       if (!host) return;
       const sessionId = pathSessionId(request);
       if (!sessionId)

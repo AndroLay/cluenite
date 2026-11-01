@@ -9,12 +9,24 @@ Frontend requests and dispositions are in [FRONTEND_CONTRACT_REQUESTS.md](FRONTE
 
 ## Current integration context
 
+### REQ-FE-005: browser OAuth outcomes (2 November 2026)
+
+Implemented server-side; frontend integration remains with Haiku. When `Accept` explicitly prefers HTML, OAuth outcomes redirect to the configured `PUBLIC_ORIGIN` at `/connect?result=<code>`. Allowed codes are `connected`, `denied`, `invalid`, `state_rejected`, `unavailable`, and `exchange_failed`. No provider error, authorization code, token, or caller-supplied destination is reflected. Responses use `Cache-Control: no-store` and `Referrer-Policy: no-referrer`; callback state cookies are cleared.
+
+The query is only a presentation hint. Always confirm authenticated state with `GET /api/me`; never infer login from `result=connected`. For JSON clients, send `Accept: application/json`: existing failure status/error bodies and the successful redirect to `PUBLIC_ORIGIN` are preserved. Missing `Accept`, HTML with `q=0`, or a stronger JSON preference keeps the legacy behavior. Auth and OAuth presentation checks pass locally as part of the full predeploy suite; real Twitch login is still unverified.
+
+### HTTP limits and diagnostics (predeploy follow-up)
+
+API requests can now return `429 {"error":"rate_limited"}` with a seconds-based `Retry-After` header. Budgets are 600 API requests and 20 Twitch-auth requests per transport peer/minute, plus 60 authenticated mutations per Twitch account/minute across cookies and all mutation routes. Respect the retry interval; retain the original idempotency key when retrying a mutation. Health/static paths are excluded. These are single-process limits, with proxy trust disabled. API bodies above 16 KiB return `413 {"error":"request_body_too_large"}`; all API responses are `no-store`. Unexpected framework errors return generic `request_rejected` or `internal_error` bodies instead of raw diagnostic text.
+
+Credential refresh/worker cancellation, input minimization, and operational commands are documented in the [predeploy guide](../operations/BACKEND_PREDEPLOY_2026-11-02.md). These changes require no frontend payload/schema migration. Live Twitch acceptance and Haiku's UI wiring remain separate gates.
+
 - `/` is the landing page; `/play` creates non-co-op sessions after host login. Use Start in the host panel to activate a created session.
 - `/?view=quick` is the local manuscript UI sample, separate from Q01; `/?view=mystery` is the M01 visual preview. Samples do not validate live proof.
 - OBS credentials and co-op invitations are implemented below but have no complete web controls.
 - The round client omits optional stable socket idempotency keys; keyless compatibility is not retry-safe.
 - Persistence stores `solvedBy`; snapshots project it as `chosenVerdictId` after solve. The old reported persistence gap is closed.
-- This documentation/English pass changes no route, schema, event, or gameplay rule. See [status](../STATUS.md) for dated evidence.
+- The original documentation/English pass changed no gameplay rules. The predeploy follow-up above adds browser OAuth presentation and HTTP admission without a payload/schema migration. See [status](../STATUS.md) for dated evidence.
 
 ## Transport and authority
 

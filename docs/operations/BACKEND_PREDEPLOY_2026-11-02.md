@@ -1,0 +1,78 @@
+# Backend predeploy completion
+
+Date: 2 November 2026. Scope: backend implementation and local release preparation, stopping before deployment. Haiku owns frontend implementation and acceptance. This record supersedes the earlier backend code-gap list in the [release record](BACKEND_RELEASE_2026-11-02.md); its remote access and real-account gates remain open. No production service, database, Twitch app, scheduler, or deployment was created in this pass.
+
+## Implemented changes
+
+- REQ-FE-005: HTML OAuth navigation redirects to the configured origin at `/connect?result=connected|denied|invalid|state_rejected|unavailable|exchange_failed`. JSON clients retain their existing status/error contracts. Callback cookies are cleared, sensitive responses are not cached, and callback navigation uses `Referrer-Policy: no-referrer`. The query never proves authentication; `/api/me` does.
+- Refresh persistence uses a compare-and-swap credential version. A late refresh cannot clear revocation, restore membership, overwrite a new OAuth authorization, or revoke its replacement. New authorization and revocation lock the account before membership changes. Superseded/stopped workers check their identity after asynchronous boundaries and cannot open sockets or mark late subscriptions connected.
+- New command receipts store a whitelisted command category and result code, without raw arguments or unrelated chat text. SHA-256 request fingerprints retain exact retry/conflict checks. Historical fingerprint-less receipts keep their conservative compatibility behavior; this pass does not rewrite existing audit history.
+- HTTP admission precedes provider/database handler work: 600 API requests and 20 Twitch-auth requests per transport peer per 60 seconds; authenticated mutations share a 60/account/60-second budget across cookies and routes. Exhaustion returns `429 {"error":"rate_limited"}` with `Retry-After`. Maps are bounded at 10,000 keys each and fail closed at capacity. API bodies are limited to 16 KiB, with `413 {"error":"request_body_too_large"}`. Health and static delivery are outside these budgets. All API responses are `no-store`.
+- Request logs retain method, route template, status, and timing. They omit request URLs, query values, headers, cookies, bodies, and error messages/stacks. Unexpected HTTP errors use generic response bodies. This reduces diagnostics detail intentionally; investigate using request IDs, stable error codes, database health, and scoped diagnostics.
+- Production preflight and bounded retention/account deletion commands are available without new dependencies or schema migrations.
+
+## Production configuration check
+
+Run from the repository root, with the intended environment available privately:
+
+```powershell
+npm --prefix apps/server run preflight
+```
+
+This command loads the ignored root `.env` without overriding existing process variables, then applies production validation even when the local runtime defaults to development. It prints only a validity result, missing variable names, and fixed validation messages. Exit 0 means configuration syntax/relationships pass; exit 1 means correction is required. It does not connect to PostgreSQL/Twitch, run migrations, authorize an account, validate the actual credentials, or prove deployment readiness. `RENDER_API_KEY` is deployment tooling access, not an application runtime requirement.
+
+Required values: `PUBLIC_ORIGIN`, `DATABASE_URL`, `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, `TWITCH_REDIRECT_URI`, `SESSION_SIGNING_SECRET`, `DATA_ENCRYPTION_KEY`, and `OVERLAY_TOKEN_SIGNING_KEY`. Production requires HTTPS, the exact same-origin `/api/auth/twitch/callback`, disabled developer controls, and the real Twitch adapter. Signing keys must have at least 32 bytes; the encryption key must be canonical base64 for exactly 32 bytes. Generate real random values privately; keep encryption/signing keys stable across redeploys and recovery.
+
+## Retention and deletion
+
+The application owner operates this policy daily after deployment. This task supplies the command and tests; it does not schedule or execute production deletion. Preview first:
+
+```powershell
+npm --prefix apps/server run maintenance
+```
+
+The preview performs SELECT statements and rolls back its transaction. It reports counts, never tokens or account identifiers. Explicit application is:
+
+```powershell
+npm --prefix apps/server run maintenance -- --apply
+```
+
+Each transaction handles at most 100 sessions, 1,000 expired/revoked host-session rows, and 100 unreferenced accounts. Transactions are serializable, with bounded statement/lock timeouts. Concurrent changes may cause a safe rollback; rerun a fresh preview. A successful batch is idempotent. Repeat batches until the preview reports zero eligible rows; preserve a backup/restore path before destructive maintenance.
+
+| Data                                                 | Retention/deletion rule                                                                                                                                                                                                               |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RESOLVED`, `PARTIAL`, `CANCELLED` sessions          | Delete after more than 30 days since last update, only when every outbox event is published. Cascades remove the session's events, input receipts, contributions, outbox, overlay credentials, memberships, and invitations together. |
+| `COOP_WAITING`, `READY`, `ACTIVE`, `PAUSED` sessions | Preserve current proof and deduplication. The owner must explicitly stop an abandoned session before its terminal retention period begins.                                                                                            |
+| Host sessions                                        | Remove after expiry or revocation is more than one day old. Active host sessions are preserved.                                                                                                                                       |
+| Accounts                                             | Remove after revocation or token expiry is more than 30 days old, only when no retained session, membership, invite, contribution, processed-input/event actor reference, or remaining host-session row refers to them.               |
+| Overlay/invite retry receipts                        | Keep with their parent session, including expired credentials, to preserve replay handling.                                                                                                                                           |
+| Pinned authored case metadata                        | Keep as product configuration; it is not player history.                                                                                                                                                                              |
+
+`blockedPendingSessions` counts old terminal sessions protected by undelivered outbox events. Resolve/retry delivery before cleanup; do not silently discard events to make the number zero. Open sessions and blocked deliveries require operator review, so the command does not promise that all data disappears automatically at day 30.
+
+For a specific deletion request, revoke the account using the authenticated disconnect flow first. Then preview and, when eligible, apply:
+
+```powershell
+# Set this to the requesting account's verified Twitch user ID.
+$twitchUserId = "REPLACE_WITH_VERIFIED_TWITCH_ID"
+npm --prefix apps/server run maintenance -- --erase-account "$twitchUserId"
+npm --prefix apps/server run maintenance -- --erase-account "$twitchUserId" --apply
+```
+
+Targeted erasure bypasses the 30-day account age only. It requires revocation and refuses any retained session/co-op/invitation/contribution/input/event reference. It never deletes a partner's investigation to erase another account. Close the owner's abandoned sessions through normal controls and resolve retained shared-history handling before retrying. A blocked erasure is not a completed deletion; record it for owner follow-up. Repeating an already-completed erasure reports zero accounts. Backups and external provider history have their own lifecycle; these commands affect the selected application database only.
+
+## Runtime and deployment boundary
+
+The [Blueprint](../../render.yaml) remains a manual deployment definition for the confirmed workspace: one Singapore web instance and private PostgreSQL 18. Build with the pinned package manager and frozen lockfile. Startup runs the existing ordered migrations in one transaction under an advisory lock before listening; failure must stop startup. `/health/live` proves HTTP process liveness and `/health/ready` additionally checks PostgreSQL.
+
+Proxy trust stays disabled. IP budgets use the immediate transport peer, and forged `X-Forwarded-*` headers cannot bypass them. Render terminates TLS before forwarding HTTP, so multiple clients can share a proxy budget. Confirm the real proxy path and appropriate thresholds during remote acceptance before increasing scale. Do not trust every proxy or adopt hop-count-only trust. This conservative choice follows [Fastify's proxy guidance](https://fastify.dev/docs/latest/Reference/Server/#trustproxy) and [Render's web-service transport documentation](https://render.com/docs/web-services); it is not evidence of the as-yet undeployed network path. The limiter is per process and resets on restart; multi-instance deployment requires shared admission state or verified edge enforcement.
+
+Before any later deployment, the owner must supply the deferred Render access and real Twitch app configuration, register the assigned callback, and authorize that deployment. Pin the reviewed source commit and require CI to pass. Verify remote readiness, private database ingress, current assets, Socket.IO, real OAuth/chat, refresh/revocation, one-viewer proof, two-channel C01 consent, OBS read-only behavior, and restart/outbox recovery on the actual target. Follow the [external checklist](../agent-handoff/TWITCH_EVENTSUB_CHECKLIST.md) and existing [rollback/recovery procedure](BACKEND_RELEASE_2026-11-02.md#rollout-recovery-and-stop-conditions). No prior successful production deployment or remote restore drill is claimed.
+
+Frontend routes, copy, visual acceptance, signed-in browser flows, OBS UI, co-op workstations, and remaining client retry/hint affordances stay with Haiku. Large libraries, generated cases, global progression, and raid handoff remain P2 scope; they are not release promises.
+
+## Verification record
+
+Final command results and publication identity are recorded after final verification in the [backend progress log](../agent-handoff/BACKEND_PROGRESS.md). All database mutation tests use unique temporary schemas inside the explicitly allowed local `cluenite` database; provider HTTP/WebSocket boundaries are synthetic and labeled. No shared API process or application schema was stopped, restarted, or cleaned.
+
+The first unrestricted parallel suite hit a native Windows PostgreSQL backend exception (`0xC0000142`), followed by shared-memory recovery error 487. The verified project cluster required process recovery after native shutdown timed out; it completed WAL replay and returned to localhost readiness. The API on port 10000 was not stopped. No data directory, application schema, ACL, or global setting was deleted or changed. A two-worker run then passed all 108 tests across 22 files, and the repository now caps Vitest at two workers. This bounds fixture/process pressure; it does not establish the exact Windows failure cause or claim a PostgreSQL engine fix. Interrupted test schemas were not bulk-deleted.

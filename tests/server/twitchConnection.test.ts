@@ -61,6 +61,7 @@ function eventSubMessage(
 describe("Twitch EventSub connection lifecycle", () => {
   it("subscribes after welcome, migrates planned reconnects, and resubscribes after an unexpected loss", async () => {
     const account: DecryptedTwitchAccount = {
+      credentialVersion: "test-version",
       identity: {
         id: "1971641",
         login: "cluenitehost",
@@ -73,9 +74,9 @@ describe("Twitch EventSub connection lifecycle", () => {
     };
     const sessions = {
       loadTwitchAccount: vi.fn(async () => account),
-      markTokenValidated: vi.fn(async () => undefined),
+      markTokenValidated: vi.fn(async () => true),
       saveTwitchAccount: vi.fn(async () => undefined),
-      markTwitchRevoked: vi.fn(async () => undefined),
+      markTwitchRevoked: vi.fn(async () => true),
       listActiveTwitchUserIds: vi.fn(async () => []),
       hasActiveHostSession: vi.fn(async () => true),
     } as unknown as SessionStore;
@@ -236,7 +237,10 @@ describe("Twitch EventSub connection lifecycle", () => {
       ),
     );
     await flushMicrotasks();
-    expect(sessions.markTwitchRevoked).toHaveBeenCalledWith("1971641");
+    expect(sessions.markTwitchRevoked).toHaveBeenCalledWith(
+      "1971641",
+      "test-version",
+    );
     expect(onAccountRevoked).toHaveBeenCalledWith("1971641");
     expect(manager.statusForUser("1971641")).toBe("revoked");
     expect(manager.diagnosticsForUser("1971641").activeSubscriptions).toBe(0);
@@ -247,6 +251,7 @@ describe("Twitch EventSub connection lifecycle", () => {
   it("closes and retries a socket when Twitch keepalives stop arriving", async () => {
     vi.useFakeTimers();
     const account: DecryptedTwitchAccount = {
+      credentialVersion: "test-version",
       identity: {
         id: "1971641",
         login: "cluenitehost",
@@ -259,9 +264,9 @@ describe("Twitch EventSub connection lifecycle", () => {
     };
     const sessions = {
       loadTwitchAccount: vi.fn(async () => account),
-      markTokenValidated: vi.fn(async () => undefined),
+      markTokenValidated: vi.fn(async () => true),
       saveTwitchAccount: vi.fn(async () => undefined),
-      markTwitchRevoked: vi.fn(async () => undefined),
+      markTwitchRevoked: vi.fn(async () => true),
     } as unknown as SessionStore;
     const api = {
       validateToken: vi.fn(async () => ({

@@ -47,6 +47,8 @@ export class OverlayCredentialReplayError extends Error {
 }
 
 export interface DecryptedTwitchAccount {
+  /** Internal compare-and-swap version; never expose it in API responses. */
+  readonly credentialVersion: string;
   readonly identity: TwitchIdentity;
   readonly accessToken: string;
   readonly refreshToken: string;
@@ -102,8 +104,11 @@ export class SessionStore {
       this.dataEncryptionKey,
       `twitch-refresh:${identity.id}`,
     );
-    await this.pool.query(
-      `INSERT INTO twitch_accounts (
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(
+        `INSERT INTO twitch_accounts (
          twitch_user_id, login, display_name,
          access_token_ciphertext, access_token_iv, access_token_tag,
          refresh_token_ciphertext, refresh_token_iv, refresh_token_tag,
@@ -123,10 +128,62 @@ export class SessionStore {
          revoked_at = NULL,
          last_validated_at = now(),
          updated_at = now()`,
+        [
+          identity.id,
+          identity.login,
+          identity.displayName,
+          access.ciphertext,
+          access.iv,
+          access.tag,
+          refresh.ciphertext,
+          refresh.iv,
+          refresh.tag,
+          [...new Set(tokenSet.scopes)],
+          Math.max(1, Math.trunc(tokenSet.expiresIn)),
+        ],
+      );
+      await client.query(
+        `UPDATE session_channels sc SET revoked_at = NULL
+       FROM game_sessions s
+       WHERE sc.session_id = s.id AND sc.broadcaster_id = $1
+         AND sc.team_role = 'A' AND s.host_twitch_id = $1`,
+        [identity.id],
+      );
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async saveRefreshedTwitchAccount(
+    account: DecryptedTwitchAccount,
+    tokenSet: TwitchTokenSet,
+  ): Promise<DecryptedTwitchAccount | null> {
+    const id = account.identity.id;
+    const access = encryptSecret(
+      tokenSet.accessToken,
+      this.dataEncryptionKey,
+      `twitch-access:${id}`,
+    );
+    const refresh = encryptSecret(
+      tokenSet.refreshToken,
+      this.dataEncryptionKey,
+      `twitch-refresh:${id}`,
+    );
+    // Each encrypted refresh token has a fresh random IV, including reauthorization.
+    const result = await this.pool.query<{ token_expires_at: Date }>(
+      `UPDATE twitch_accounts SET
+         access_token_ciphertext = $3, access_token_iv = $4, access_token_tag = $5,
+         refresh_token_ciphertext = $6, refresh_token_iv = $7, refresh_token_tag = $8,
+         scopes = $9, token_expires_at = now() + ($10 * interval '1 second'), updated_at = now()
+       WHERE twitch_user_id = $1 AND refresh_token_iv = $2 AND revoked_at IS NULL
+       RETURNING token_expires_at`,
       [
-        identity.id,
-        identity.login,
-        identity.displayName,
+        id,
+        account.credentialVersion,
         access.ciphertext,
         access.iv,
         access.tag,
@@ -137,13 +194,17 @@ export class SessionStore {
         Math.max(1, Math.trunc(tokenSet.expiresIn)),
       ],
     );
-    await this.pool.query(
-      `UPDATE session_channels sc SET revoked_at = NULL
-       FROM game_sessions s
-       WHERE sc.session_id = s.id AND sc.broadcaster_id = $1
-         AND sc.team_role = 'A' AND s.host_twitch_id = $1`,
-      [identity.id],
-    );
+    const row = result.rows[0];
+    return row
+      ? {
+          identity: account.identity,
+          credentialVersion: refresh.iv,
+          accessToken: tokenSet.accessToken,
+          refreshToken: tokenSet.refreshToken,
+          scopes: tokenSet.scopes,
+          tokenExpiresAt: row.token_expires_at,
+        }
+      : null;
   }
 
   async createHostSession(
@@ -384,6 +445,7 @@ export class SessionStore {
       throw new Error("Stored Twitch scopes are malformed.");
     }
     return {
+      credentialVersion: String(row.refresh_token_iv),
       identity: {
         id: String(row.twitch_user_id),
         login: String(row.login),
@@ -414,17 +476,35 @@ export class SessionStore {
     return result.rows.map((row) => row.twitch_user_id);
   }
 
-  async markTokenValidated(twitchUserId: string): Promise<void> {
-    await this.pool.query(
-      "UPDATE twitch_accounts SET last_validated_at = now(), updated_at = now() WHERE twitch_user_id = $1 AND revoked_at IS NULL",
-      [twitchUserId],
+  async markTokenValidated(
+    twitchUserId: string,
+    credentialVersion?: string,
+  ): Promise<boolean> {
+    const result = await this.pool.query(
+      `UPDATE twitch_accounts SET last_validated_at = now(), updated_at = now()
+       WHERE twitch_user_id = $1 AND revoked_at IS NULL AND ($2::text IS NULL OR refresh_token_iv = $2)`,
+      [twitchUserId, credentialVersion ?? null],
     );
+    return result.rowCount === 1;
   }
 
-  async markTwitchRevoked(twitchUserId: string): Promise<void> {
+  async markTwitchRevoked(
+    twitchUserId: string,
+    credentialVersion?: string,
+  ): Promise<boolean> {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
+      // Lock the account first, in the same order as new OAuth authorization.
+      const account = await client.query(
+        `SELECT 1 FROM twitch_accounts WHERE twitch_user_id = $1 AND revoked_at IS NULL
+         AND ($2::text IS NULL OR refresh_token_iv = $2) FOR UPDATE`,
+        [twitchUserId, credentialVersion ?? null],
+      );
+      if (account.rowCount !== 1) {
+        await client.query("COMMIT");
+        return false;
+      }
       await client.query(
         `UPDATE overlay_credentials o SET revoked_at = now()
          FROM session_channels sc
@@ -455,6 +535,7 @@ export class SessionStore {
         [twitchUserId],
       );
       await client.query("COMMIT");
+      return true;
     } catch (error) {
       await client.query("ROLLBACK").catch(() => undefined);
       throw error;

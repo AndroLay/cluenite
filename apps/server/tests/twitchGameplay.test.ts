@@ -96,6 +96,7 @@ describeWithDatabase("Twitch-to-Q01 local gameplay path", () => {
 
     const now = 1_800_000_000_000;
     const account: DecryptedTwitchAccount = {
+      credentialVersion: "test-version",
       identity: { id: hostId, login: "host", displayName: "Host" },
       accessToken: "fixture-access-token",
       refreshToken: "fixture-refresh-token",
@@ -104,7 +105,7 @@ describeWithDatabase("Twitch-to-Q01 local gameplay path", () => {
     };
     const sessions = {
       loadTwitchAccount: vi.fn(async () => account),
-      markTokenValidated: vi.fn(async () => undefined),
+      markTokenValidated: vi.fn(async () => true),
     } as unknown as SessionStore;
     const api = {
       validateToken: vi.fn(async () => ({

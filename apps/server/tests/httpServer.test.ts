@@ -117,6 +117,37 @@ describeWithDatabase("built application HTTP runtime", () => {
     expect((await fetch(`${origin}/api/me`)).status).toBe(401);
   });
 
+  it("presents unavailable browser OAuth on the configured origin and clears state", async () => {
+    const response = await fetch(
+      `${origin}/api/auth/twitch/callback?code=synthetic-code&state=${"s".repeat(43)}`,
+      {
+        redirect: "manual",
+        headers: {
+          Accept: "text/html",
+          Cookie: `cluenite_oauth_state=${"s".repeat(43)}`,
+        },
+      },
+    );
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      `${origin}/connect?result=unavailable`,
+    );
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("referrer-policy")).toBe("no-referrer");
+    expect(response.headers.get("set-cookie")).toContain("Max-Age=0");
+  });
+
+  it("rejects an oversized API body before unauthenticated handler work", async () => {
+    const response = await fetch(`${origin}/api/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ value: "x".repeat(17_000) }),
+    });
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({ error: "request_body_too_large" });
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
   it("serves built English client pages at their deep links", async () => {
     for (const path of [
       "/",

@@ -4,19 +4,20 @@
 
 ## Current guides
 
-| Document                                                                                               | Use it for                                                          |
-| ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
-| [Project overview](../README.md)                                                                       | Product, runtime cases, stack, and workspace.                       |
-| [Local run guide](../HOW_TO_RUN.md)                                                                    | Database, environment, ports, samples, and real host setup.         |
-| [Development guide](../CONTRIBUTING.md)                                                                | Language policy, boundaries, checks, and documentation maintenance. |
-| [Implementation status](STATUS.md)                                                                     | What exists, fresh versus historical evidence, and remaining gaps.  |
-| [Architecture decisions](architecture/DECISIONS.md)                                                    | Current technical choices and source precedence.                    |
-| [Web product](../apps/web/PRODUCT.md) and [design](../apps/web/DESIGN.md)                              | Actual routes, samples, visual direction, and interface limits.     |
-| [Server guide](../apps/server/README.md)                                                               | Backend operations and API overview.                                |
-| [Backend release record](operations/BACKEND_RELEASE_2026-11-02.md)                                     | Release checks, private GitHub source, Render target, and blockers. |
-| [API/realtime contracts](agent-handoff/BACKEND_CONTRACTS.md)                                           | Implemented HTTP, Socket.IO, snapshot, and command contracts.       |
-| [External verification checklist](agent-handoff/TWITCH_EVENTSUB_CHECKLIST.md)                          | Evidence still needed from real Twitch, OBS, Render, and players.   |
-| [Collaboration protocol](../TEAM_PROTOCOL.md) and [integration runbook](../INTEGRATION_AND_RUNBOOK.md) | Ownership, handoff, integration, and acceptance.                    |
+| Document                                                                                               | Use it for                                                                             |
+| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| [Project overview](../README.md)                                                                       | Product, runtime cases, stack, and workspace.                                          |
+| [Local run guide](../HOW_TO_RUN.md)                                                                    | Database, environment, ports, samples, and real host setup.                            |
+| [Development guide](../CONTRIBUTING.md)                                                                | Language policy, boundaries, checks, and documentation maintenance.                    |
+| [Implementation status](STATUS.md)                                                                     | What exists, fresh versus historical evidence, and remaining gaps.                     |
+| [Architecture decisions](architecture/DECISIONS.md)                                                    | Current technical choices and source precedence.                                       |
+| [Web product](../apps/web/PRODUCT.md) and [design](../apps/web/DESIGN.md)                              | Actual routes, samples, visual direction, and interface limits.                        |
+| [Server guide](../apps/server/README.md)                                                               | Backend operations and API overview.                                                   |
+| [Backend release record](operations/BACKEND_RELEASE_2026-11-02.md)                                     | Release checks, private GitHub source, Render target, and blockers.                    |
+| [Backend predeploy guide](operations/BACKEND_PREDEPLOY_2026-11-02.md)                                  | Current OAuth/HTTP behavior, preflight, retention, deletion, and final backend checks. |
+| [API/realtime contracts](agent-handoff/BACKEND_CONTRACTS.md)                                           | Implemented HTTP, Socket.IO, snapshot, and command contracts.                          |
+| [External verification checklist](agent-handoff/TWITCH_EVENTSUB_CHECKLIST.md)                          | Evidence still needed from real Twitch, OBS, Render, and players.                      |
+| [Collaboration protocol](../TEAM_PROTOCOL.md) and [integration runbook](../INTEGRATION_AND_RUNBOOK.md) | Ownership, handoff, integration, and acceptance.                                       |
 
 ## Authority and historical material
 

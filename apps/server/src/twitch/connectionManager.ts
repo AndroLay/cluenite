@@ -163,27 +163,31 @@ export class TwitchConnectionManager {
     if (this.shutdownStarted) return;
     const leader = this.leaderIdentity?.() ?? null;
     if (this.leaderIdentity && !leader) return;
-    let state = this.workers.get(twitchUserId);
-    if (!state) {
-      state = {
-        status: "disconnected",
-        statusSince: new Date(this.now()).toISOString(),
-        socket: null,
-        handoffSocket: null,
-        handoffTimer: null,
-        reconnectTimer: null,
-        validationTimer: null,
-        retries: 0,
-        subscriptionActive: false,
-        lastNotificationAt: null,
-        leaderOwnerId: null,
-        leaderEpoch: null,
-        stopped: false,
-      };
-      this.workers.set(twitchUserId, state);
-    } else if (state.status === "connected" || state.status === "connecting") {
+    const previous = this.workers.get(twitchUserId);
+    if (
+      previous &&
+      !previous.stopped &&
+      (previous.status === "connected" || previous.status === "connecting")
+    )
       return;
-    }
+    // stopUser synchronously invalidates the old worker before any new work starts.
+    if (previous) void this.stopUser(twitchUserId);
+    const state: WorkerState = {
+      status: "disconnected",
+      statusSince: new Date(this.now()).toISOString(),
+      socket: null,
+      handoffSocket: null,
+      handoffTimer: null,
+      reconnectTimer: null,
+      validationTimer: null,
+      retries: 0,
+      subscriptionActive: false,
+      lastNotificationAt: null,
+      leaderOwnerId: null,
+      leaderEpoch: null,
+      stopped: false,
+    };
+    this.workers.set(twitchUserId, state);
     state.stopped = false;
     state.retries = 0;
     state.subscriptionActive = false;
@@ -193,7 +197,8 @@ export class TwitchConnectionManager {
     state.reconnectTimer = null;
     this.setStatus(twitchUserId, state, "connecting");
     try {
-      const account = await this.ensureValidAccount(twitchUserId);
+      const account = await this.ensureValidAccount(twitchUserId, state);
+      if (!this.isCurrentWorker(twitchUserId, state)) return;
       this.scheduleValidation(twitchUserId, account);
       this.openSocket(
         twitchUserId,
@@ -204,7 +209,11 @@ export class TwitchConnectionManager {
         null,
       );
     } catch {
-      if (this.statusForUser(twitchUserId) === "revoked") return;
+      if (
+        !this.isCurrentWorker(twitchUserId, state) ||
+        state.status === "revoked"
+      )
+        return;
       this.setStatus(twitchUserId, state, "error");
       this.scheduleReconnect(twitchUserId, state);
     }
@@ -244,72 +253,97 @@ export class TwitchConnectionManager {
     );
   }
 
+  private isCurrentWorker(twitchUserId: string, state: WorkerState): boolean {
+    return (
+      !this.shutdownStarted &&
+      !state.stopped &&
+      this.workers.get(twitchUserId) === state
+    );
+  }
+
+  private requireCurrentWorker(twitchUserId: string, state: WorkerState): void {
+    if (!this.isCurrentWorker(twitchUserId, state))
+      throw new Error("Twitch worker was superseded.");
+  }
+
+  private async revokeAccount(
+    account: DecryptedTwitchAccount,
+    state: WorkerState,
+  ): Promise<void> {
+    const id = account.identity.id;
+    this.requireCurrentWorker(id, state);
+    if (!(await this.sessions.markTwitchRevoked(id, account.credentialVersion)))
+      return;
+    if (!this.isCurrentWorker(id, state)) return;
+    await this.stopUser(id);
+    this.setStatus(id, state, "revoked");
+    await this.onAccountRevoked?.(id);
+  }
+
   private async ensureValidAccount(
     twitchUserId: string,
+    state: WorkerState,
   ): Promise<DecryptedTwitchAccount> {
     let account = await this.sessions.loadTwitchAccount(twitchUserId);
+    this.requireCurrentWorker(twitchUserId, state);
     if (!account) throw new Error("Twitch account is unavailable.");
-    let validation: Awaited<ReturnType<TwitchApi["validateToken"]>>;
     let needsRefresh: boolean;
-    try {
-      validation = await this.api.validateToken(account.accessToken);
+    const validate = async (): Promise<number> => {
+      const result = await this.api.validateToken(account!.accessToken);
+      this.requireCurrentWorker(twitchUserId, state);
       if (
-        validation.user_id !== twitchUserId ||
-        !validation.scopes.includes("user:read:chat")
+        result.user_id !== twitchUserId ||
+        !result.scopes.includes("user:read:chat")
       ) {
-        await this.sessions.markTwitchRevoked(twitchUserId);
-        const state = this.workers.get(twitchUserId);
-        if (state) this.setStatus(twitchUserId, state, "revoked");
-        await this.onAccountRevoked?.(twitchUserId);
+        await this.revokeAccount(account!, state);
         throw new Error(
           "Stored Twitch authorization does not match the connected broadcaster.",
         );
       }
+      return result.expires_in;
+    };
+    try {
       needsRefresh =
-        validation.expires_in < 300 ||
+        (await validate()) < 300 ||
         account.tokenExpiresAt.getTime() - this.now() < 300_000;
     } catch (error) {
       if (error instanceof TwitchAuthorizationExpiredError) needsRefresh = true;
       else throw error;
     }
-
+    this.requireCurrentWorker(twitchUserId, state);
     if (needsRefresh) {
       let rotated: TwitchTokenSet;
       try {
         rotated = await this.api.refreshToken(account.refreshToken);
       } catch (error) {
-        if (error instanceof TwitchAuthorizationExpiredError) {
-          await this.sessions.markTwitchRevoked(twitchUserId);
-          const state = this.workers.get(twitchUserId);
-          if (state) this.setStatus(twitchUserId, state, "revoked");
-          await this.onAccountRevoked?.(twitchUserId);
-        }
+        if (error instanceof TwitchAuthorizationExpiredError)
+          await this.revokeAccount(account, state);
         throw error;
       }
+      this.requireCurrentWorker(twitchUserId, state);
       if (!rotated.scopes.includes("user:read:chat")) {
-        await this.sessions.markTwitchRevoked(twitchUserId);
-        const state = this.workers.get(twitchUserId);
-        if (state) this.setStatus(twitchUserId, state, "revoked");
-        await this.onAccountRevoked?.(twitchUserId);
+        await this.revokeAccount(account, state);
         throw new Error("Refreshed Twitch token is missing chat scope.");
       }
-      await this.sessions.saveTwitchAccount(account.identity, rotated);
-      account = await this.sessions.loadTwitchAccount(twitchUserId);
-      if (!account)
-        throw new Error("Refreshed Twitch authorization could not be loaded.");
-      validation = await this.api.validateToken(account.accessToken);
-      if (
-        validation.user_id !== twitchUserId ||
-        !validation.scopes.includes("user:read:chat")
-      ) {
-        await this.sessions.markTwitchRevoked(twitchUserId);
-        const state = this.workers.get(twitchUserId);
-        if (state) this.setStatus(twitchUserId, state, "revoked");
-        await this.onAccountRevoked?.(twitchUserId);
-        throw new Error("Refreshed Twitch authorization did not validate.");
-      }
+      const refreshed = await this.sessions.saveRefreshedTwitchAccount(
+        account,
+        rotated,
+      );
+      this.requireCurrentWorker(twitchUserId, state);
+      if (!refreshed)
+        throw new Error("Twitch authorization changed during refresh.");
+      account = refreshed;
+      await validate();
     }
-    await this.sessions.markTokenValidated(twitchUserId);
+    this.requireCurrentWorker(twitchUserId, state);
+    if (
+      !(await this.sessions.markTokenValidated(
+        twitchUserId,
+        account.credentialVersion,
+      ))
+    )
+      throw new Error("Twitch authorization changed during validation.");
+    this.requireCurrentWorker(twitchUserId, state);
     return account;
   }
 
@@ -318,7 +352,7 @@ export class TwitchConnectionManager {
     account: DecryptedTwitchAccount,
   ): void {
     const state = this.workers.get(twitchUserId);
-    if (!state) return;
+    if (!state || !this.isCurrentWorker(twitchUserId, state)) return;
     this.clearTimer(state.validationTimer);
     const untilExpiry = account.tokenExpiresAt.getTime() - this.now() - 300_000;
     const delay = Math.max(60_000, Math.min(60 * 60_000, untilExpiry));
@@ -331,9 +365,10 @@ export class TwitchConnectionManager {
     twitchUserId: string,
     state: WorkerState,
   ): Promise<void> {
-    if (state.stopped) return;
+    if (!this.isCurrentWorker(twitchUserId, state)) return;
     try {
-      const account = await this.ensureValidAccount(twitchUserId);
+      const account = await this.ensureValidAccount(twitchUserId, state);
+      if (!this.isCurrentWorker(twitchUserId, state)) return;
       if (state.status === "connected") {
         const old = state.socket;
         state.socket = null;
@@ -349,9 +384,13 @@ export class TwitchConnectionManager {
           null,
         );
       }
+      if (!this.isCurrentWorker(twitchUserId, state)) return;
       this.scheduleValidation(twitchUserId, account);
     } catch {
-      if (state.status !== "revoked") {
+      if (
+        this.isCurrentWorker(twitchUserId, state) &&
+        state.status !== "revoked"
+      ) {
         this.setStatus(twitchUserId, state, "error");
         this.scheduleReconnect(twitchUserId, state);
       }
@@ -366,6 +405,7 @@ export class TwitchConnectionManager {
     mode: "primary" | "handoff",
     oldSocket: EventSubSocket | null,
   ): void {
+    if (!this.isCurrentWorker(twitchUserId, state)) return;
     let socket: EventSubSocket;
     try {
       socket = this.socketFactory(url);
@@ -399,7 +439,12 @@ export class TwitchConnectionManager {
     socket.addEventListener("message", (event) => {
       void (async () => {
         const data = await asText(event.data);
-        if (data === null) return;
+        if (
+          data === null ||
+          !this.isCurrentWorker(twitchUserId, state) ||
+          (state.socket !== socket && state.handoffSocket !== socket)
+        )
+          return;
         const message = parseEventSubMessage(data);
         if (!message) return;
         const messageType = message.metadata.message_type;
@@ -439,10 +484,20 @@ export class TwitchConnectionManager {
               twitchUserId,
               session.id,
             );
+            if (
+              !this.isCurrentWorker(twitchUserId, state) ||
+              state.socket !== socket
+            )
+              return;
             state.subscriptionActive = true;
             this.setStatus(twitchUserId, state, "connected");
             state.retries = 0;
           } catch {
+            if (
+              !this.isCurrentWorker(twitchUserId, state) ||
+              state.socket !== socket
+            )
+              return;
             state.subscriptionActive = false;
             this.setStatus(twitchUserId, state, "error");
             socket.close(1011, "subscription failed");
@@ -480,12 +535,7 @@ export class TwitchConnectionManager {
           return;
         }
         if (messageType === "revocation") {
-          await this.sessions.markTwitchRevoked(twitchUserId);
-          state.subscriptionActive = false;
-          this.setStatus(twitchUserId, state, "revoked");
-          state.stopped = true;
-          await this.onAccountRevoked?.(twitchUserId);
-          socket.close(1000, "authorization revoked");
+          await this.revokeAccount(account, state);
           return;
         }
         if (messageType === "notification") {
@@ -496,13 +546,14 @@ export class TwitchConnectionManager {
           }
         }
       })().catch(() => {
+        if (!this.isCurrentWorker(twitchUserId, state)) return;
         this.setStatus(twitchUserId, state, "error");
       });
     });
 
     socket.addEventListener("close", () => {
       clearKeepAlive();
-      if (state.stopped) return;
+      if (!this.isCurrentWorker(twitchUserId, state)) return;
       if (state.handoffSocket === socket) {
         state.handoffSocket = null;
         this.clearTimer(state.handoffTimer);
@@ -537,7 +588,7 @@ export class TwitchConnectionManager {
     const membership = await this.rounds.findActiveSessionForBroadcaster(
       envelope.originBroadcasterId,
     );
-    if (!membership) return;
+    if (!membership || state.stopped || this.shutdownStarted) return;
     const canonicalMessageId =
       envelope.sourceMessageId ?? envelope.twitchMessageId;
     await this.rounds.applyInput({
@@ -560,7 +611,8 @@ export class TwitchConnectionManager {
   }
 
   private scheduleReconnect(twitchUserId: string, state: WorkerState): void {
-    if (state.stopped || this.shutdownStarted || state.reconnectTimer) return;
+    if (!this.isCurrentWorker(twitchUserId, state) || state.reconnectTimer)
+      return;
     if (state.retries >= MAX_RECONNECT_ATTEMPTS) {
       this.setStatus(twitchUserId, state, "error");
       return;
@@ -580,7 +632,8 @@ export class TwitchConnectionManager {
     state: WorkerState,
   ): Promise<void> {
     try {
-      const account = await this.ensureValidAccount(twitchUserId);
+      const account = await this.ensureValidAccount(twitchUserId, state);
+      if (!this.isCurrentWorker(twitchUserId, state)) return;
       this.scheduleValidation(twitchUserId, account);
       if (state.socket) {
         state.socket.close(1012, "reconnecting");
@@ -595,7 +648,10 @@ export class TwitchConnectionManager {
         null,
       );
     } catch {
-      if (state.status !== "revoked") {
+      if (
+        this.isCurrentWorker(twitchUserId, state) &&
+        state.status !== "revoked"
+      ) {
         this.setStatus(twitchUserId, state, "error");
         this.scheduleReconnect(twitchUserId, state);
       }

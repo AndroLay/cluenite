@@ -554,6 +554,22 @@ function legacyActionSummary(text: string): string {
   return text.trim().slice(0, 120);
 }
 
+function sanitizedActionSummary(text: string, result: CommandResult): string {
+  const verb = text.trim().replace(/^!/, "").split(/\s+/, 1)[0]?.toLowerCase();
+  const allowed = [
+    "inspect",
+    "look",
+    "link",
+    "solve",
+    "order",
+    "code",
+    "theory",
+    "hint",
+    "recap",
+  ];
+  return `command:${verb && allowed.includes(verb) ? verb : "unknown"}:${result.code}`;
+}
+
 function isLegacyInputType(input: ApplyRoundInput, legacyId: string): boolean {
   return input.source === "host"
     ? legacyId.startsWith("host:")
@@ -1417,7 +1433,7 @@ export class PostgresRoundRepository {
           input.eventSubMessageId ?? null,
           input.sessionId,
           input.actorTwitchId,
-          legacyActionSummary(input.text),
+          sanitizedActionSummary(input.text, result),
           fingerprint,
           JSON.stringify(pending),
         ],

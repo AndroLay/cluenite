@@ -19,8 +19,8 @@ Last synchronized: 2 November 2026. Use English for documentation, feedback, aut
 4. Run `npm --prefix apps/server run start` or the root `npm run dev`.
 
 The API reports liveness at `/health/live` and database readiness at
-`/health/ready`. Auth routes return `503` until signing and encryption keys are
-present. A real Twitch connection also requires `TWITCH_ADAPTER=twitch` and the
+`/health/ready`. JSON auth requests return `503` until signing and encryption keys are
+present; HTML OAuth navigation redirects to `/connect?result=unavailable`. A real Twitch connection also requires `TWITCH_ADAPTER=twitch` and the
 three Twitch application values.
 
 `GET /api/cases` is registered inside the auth-configured module and returns `404` when the signing/encryption keys are absent. `CLUENITE_DEV_CONTROLS` provides no host-login bypass. The web UI does not yet issue OBS credentials or complete co-op invitations.
@@ -94,6 +94,8 @@ case solution or presents an incomplete run as a successful solve.
 Socket handshakes require the configured origin, with an exact same-origin `Referer` fallback only when `Origin` is absent. Optional socket keys support exact retries; the current web round client omits them and uses non-retry-safe compatibility handling.
 
 ## Verification
+
+For the current predeploy implementation, production preflight, HTTP admission, data retention/account deletion, and remaining remote gates, use the [predeploy operations guide](../../docs/operations/BACKEND_PREDEPLOY_2026-11-02.md). `npm --prefix apps/server run preflight` validates configuration without connecting to a service. `npm --prefix apps/server run maintenance` previews bounded cleanup; only `--apply` deletes eligible data. Never treat a local configuration check as a deployed acceptance result.
 
 Run `npm run build` before `npm test`, which includes unit tests plus PostgreSQL integration tests. The HTTP fixture starts an owned random-port server and checks database readiness, signed-out rejection, English SPA deep links, current CSS, and JSON 404 responses for missing API, health, and asset paths. `GET /api` does not fall back to the HTML application.
 

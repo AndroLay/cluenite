@@ -7,7 +7,17 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 
+import {
+  HTTP_BODY_LIMIT,
+  registerHttpAdmission,
+  safeLoggerOptions,
+} from "./ops/httpPolicy.js";
+import {
+  clearCookieHeader,
+  OAUTH_STATE_COOKIE_NAME,
+} from "./auth/authorization.js";
 import { parseServerConfig } from "./config.js";
+import { sendOAuthOutcome } from "./auth/oauthOutcome.js";
 import {
   attachRealtime,
   CONNECTION_STATUS_EVENT,
@@ -31,19 +41,11 @@ loadDotEnv({
 
 const config = parseServerConfig(process.env);
 const app = Fastify({
-  logger: {
-    redact: {
-      paths: [
-        "req.headers.authorization",
-        "req.headers.cookie",
-        "req.url",
-        "req.query",
-        "res.headers.set-cookie",
-      ],
-      censor: "[REDACTED]",
-    },
-  },
+  logger: safeLoggerOptions,
+  bodyLimit: HTTP_BODY_LIMIT,
+  trustProxy: false,
 });
+registerHttpAdmission(app);
 const database = new Pool({
   connectionString: config.databaseUrl,
   max: 10,
@@ -143,7 +145,10 @@ if (sessions) {
     sessions,
     rounds,
     twitchApi,
-    onAccountAuthorized: (userId) => twitchConnections?.startUser(userId),
+    onAccountAuthorized: async (userId) => {
+      await twitchConnections?.stopUser(userId);
+      await twitchConnections?.startUser(userId);
+    },
     onTwitchDisconnected: async (userId) => {
       await handleAccountRevoked(userId);
       await twitchConnections?.stopUser(userId);
@@ -169,8 +174,27 @@ if (sessions) {
     _request: unknown,
     reply: { code: (status: number) => { send: (body: unknown) => unknown } },
   ) => reply.code(503).send({ error: "authentication_not_configured" });
-  app.get("/api/auth/twitch/start", unavailable);
-  app.get("/api/auth/twitch/callback", unavailable);
+  for (const path of ["/api/auth/twitch/start", "/api/auth/twitch/callback"]) {
+    app.get(path, (request, reply) => {
+      reply.header(
+        "set-cookie",
+        clearCookieHeader(
+          OAUTH_STATE_COOKIE_NAME,
+          config.nodeEnv === "production" ||
+            config.publicOrigin.protocol === "https:",
+          "/api/auth/twitch",
+        ),
+      );
+      return sendOAuthOutcome(
+        request,
+        reply,
+        config,
+        "unavailable",
+        503,
+        "authentication_not_configured",
+      );
+    });
+  }
   app.get("/api/me", unavailable);
   app.post("/api/auth/logout", unavailable);
   app.post("/api/auth/twitch/disconnect", unavailable);
