@@ -1,5 +1,4 @@
-import "dotenv/config";
-
+import { config } from "dotenv";
 import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
 import { Pool } from "pg";
@@ -10,6 +9,10 @@ import { resolve } from "node:path";
 
 import { attachRealtime } from "./realtime.js";
 import { createRoundStore } from "./rounds.js";
+
+// The root .env is found from this file, not from the working directory. `npm --prefix apps/server`
+// runs with apps/server as cwd, so a bare `dotenv/config` import would miss DATABASE_URL.
+config({ path: resolve(fileURLToPath(new URL("../../../.env", import.meta.url))) });
 
 const app = Fastify({ logger: true });
 const database = new Pool(
@@ -29,7 +32,10 @@ app.get("/health/ready", async (_request, reply) => {
   try {
     await database.query("select 1");
     return { status: "ready" };
-  } catch {
+  } catch (error) {
+    // Only the error code is logged. The message can echo connection details.
+    const code = error instanceof Error && "code" in error ? String(error.code) : "unknown";
+    app.log.warn({ code }, "database readiness check failed");
     return reply.code(503).send({ status: "not-ready" });
   }
 });
