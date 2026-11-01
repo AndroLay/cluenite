@@ -1,0 +1,53 @@
+# Frontend contract requests
+
+**Reconciled:** 2 November 2026 by the documentation integrator against the current working tree.  
+**Normal owner:** frontend. Backend responses are in [BACKEND_CONTRACTS.md](BACKEND_CONTRACTS.md).  
+**Language:** English. Source code and shared schemas define implemented contracts.
+
+The original 1 November requests are preserved in [history](../history/frontend-contract-requests-2026-11-01.md). Old port/process observations are not current service state.
+
+## Request disposition
+
+| Request                               | Current disposition                                                | Evidence / next action                                                                                                                                                                  |
+| ------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| REQ-FE-001: clue/evidence linkability | Closed; no schema/content change needed.                           | Q01 `ACCESS` is context only. Link released `CAM_R07` and `SCHEDULE_R07`, not clue IDs.                                                                                                 |
+| REQ-FE-002: verdict/reveal fields     | Closed as a reported persistence gap.                              | The repository persists `solvedBy`; the engine projects it as `chosenVerdictId` only after solve. PostgreSQL Q01 tests cover the resolved snapshot. Real deployment remains unverified. |
+| REQ-FE-003: real host test session    | Open external verification requirement; not a missing session API. | OAuth/session routes exist. Real credentials and consent remain unverified. Local integration used an isolated fake-provider fixture; no dev login bypass was added.                    |
+| REQ-FE-004: different ports/builds    | Historical observation only.                                       | Current process versions at ports 10000/10001 were not queried in this pass. Select and verify one API target for both Vite proxies.                                                    |
+
+`CLUENITE_DEV_CONTROLS` is parsed but does not provide a host-bootstrap route. Do not recommend it as a way to authenticate. Q01 has no authored hints; requesting `!hint` is not a required success step for Q01.
+
+## Frontend work using existing contracts
+
+- Add explicit phase-aware Start/Stop controls to the active host UI; the current panel only exposes Pause/Resume/Restart, while creation leaves the session in `READY`.
+- Implement OBS credential issuance/revocation UI using the existing scoped endpoint.
+- Complete C01 create/invite/accept/decline/rejoin flows without inventing identities or team membership.
+- Keep the M01 hint panel visible while exposing another request when `availableActions` contains `hint`.
+- Generate stable optional Socket.IO idempotency keys per logical command/control and reuse only for identical retries; the current round client omits them.
+- Reconcile fresh Vite development resolution for the undeclared direct `tailwindcss` import.
+- Verify the current landing/menu/guide/sample flow. The public manuscript sample is not the requested engine-validated Q01 sample; keep that difference explicit.
+
+`sequences`, `theories`, `currentHint`, `hintLevel`, `chosenVerdictId`, and `availableActions` already exist in public snapshots. Mystery Live consumes its richer fields. New contract requests should identify the exact missing field/event and affected user action, rather than repeat completed backend work.
+
+## Verification boundary
+
+The [eight-screen frontend brief](../design/frontend-target/README.md) is the current visual target. Its first milestone uses existing assets, routes, case metadata, and account state. Extra duration/difficulty/theme filters, session history, viewer/chat analytics, polls, generic co-op join codes, and saved host notes are deferred, not new implemented contracts or active requests. Open a concrete request only when an agreed implementation slice needs a missing capability. The target images' fictional data must not be used as API responses.
+
+See [current status](../STATUS.md). Source inspection and mock tests are separate from real Twitch, OBS Studio, Render, and player acceptance. No new backend contract request was introduced by the documentation/English pass.
+
+## F1 frontend pass items (2 November 2026)
+
+These items came up while the F1 public pages were rebuilt. They refine the dispositions above. They do not open new backend requests unless the last column says so.
+
+| Item | Layer | Status | Evidence | Next action |
+| --- | --- | --- | --- | --- |
+| Start/Stop lifecycle controls in the active host panel | Frontend | Backend exists; UI gap | `apps/server/src/auth/routes.ts` (`POST /api/sessions/:sessionId/:action`) accepts `start`, `pause`, `resume`, `restart`, `stop`. `apps/web/src/components/DashboardPanel.vue` exposes Pause, Resume, and Restart only. | Frontend change in the host panel. No contract request. |
+| Recent sessions list on the dashboard | Backend | Deferred | No list route. `GET /api/sessions` returned 404 in the 2 November check. Session history is out of F1 scope. | Dashboard shows an honest note. Open a request only when history enters scope. |
+| Co-op invitation creation | Backend exists | Frontend wiring pending | `POST /api/coops/invitations` in `apps/server/src/auth/routes.ts`. | Read the request and response shape when the co-op slice starts. Not checked in F1. |
+| OBS overlay credential issue and revoke | Backend exists | Frontend wiring pending; signed-in path unverified | `POST` and `DELETE /api/sessions/:sessionId/overlay-credential` in `apps/server/src/auth/routes.ts`. Unauthenticated requests return 401 `authentication_required`. | Verify the signed-in flow once a real host session exists. |
+| Unused `unavailable` stubs | Backend observation | Needs integrator review | `apps/server/src/index.ts` declares stubs for `/api/coops/sessions/:sessionId/rejoin` and `/api/sessions/:sessionId/overlay-credential`. The live auth routes answered in the 2 November check, so the stubs are likely unreachable. | Integrator to confirm whether they are dead code. |
+| Signed-in dashboard and session start | External verification | Blocked | Needs a real Twitch sign-in or an approved fake-provider fixture. | Decision needed. See the F1 progress note. |
+| Dev-only host bootstrap (`CLUENITE_DEV_CONTROLS`) | Not requested | Withdrawn | The F1 notes proposed it. It conflicts with REQ-FE-003 above, which says the flag must not be used to authenticate. | No request. |
+| REQ-FE-002 wording in F1 notes | Correction | Closed, per the disposition table | An earlier F1 note marked it blocked. The disposition table above is the reconciled record. F1 does not depend on it. | None for F1. |
+| M01 hint button hides after the first hint | Frontend, off-limits file | Blocked by file ownership | `apps/web/src/components/MysteryLiveBoard.vue`. The rule above says keep the hint panel visible while `hint` is in `availableActions`. | Owner of `MysteryLiveBoard.vue` applies the fix. |
+| Visible glyphs and "Sample" labels | Frontend, off-limits file | Blocked by file ownership | `apps/web/src/components/QuickCaseOverlay.vue:221` renders `◇ Sample verdict` and `✓ Solved`, with Unicode glyphs used as icons. `MysteryLiveBoard.vue` checks `source === "simulation"` near lines 151 and 316. The enum stays. | Owner of those files removes the glyphs. The enum does not change. |

@@ -1,0 +1,68 @@
+# Backend release record - 2 November 2026
+
+**Decision: NOT READY** for production acceptance. Local implementation checks pass; production configuration and real-account acceptance remain blocked. This record does not claim that Cluenite is deployed.
+
+## Scope and target
+
+The user authorized backend completion through deployment, a new private GitHub repository, Andro's Render workspace, and creation of a Twitch developer application using their Zen browser. Operational owner: **AndroLay**.
+
+| Surface            | Intended target                                                           | Observed state                                                                                                                                  |
+| ------------------ | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Source             | Private [AndroLay/cluenite](https://github.com/AndroLay/cluenite), `main` | Repository created. First source push and Linux CI evidence are pending in this preparation record.                                             |
+| Render workspace   | Andro's workspace, `tea-d3akn7ruibrs73ccv4ig`                             | Confirmed by the user; no Cluenite service or PostgreSQL instance existed at the release inventory check. Unrelated services are outside scope. |
+| Web service        | `cluenite-app`, Singapore, `0.5c-512mb`, one instance                     | Defined in `render.yaml`; no service ID, deploy ID, or public URL has been assigned.                                                            |
+| Database           | `cluenite-db`, PostgreSQL 18, Singapore, `0.1c-256mb`, 1 GB               | Defined with `ipAllowList: []`; no production database or applied remote migrations are claimed.                                                |
+| Twitch application | Cluenite, exact assigned production callback                              | Client ID and secret are absent. The Zen/browser control host is unavailable.                                                                   |
+
+`https://cluenite-app.onrender.com` in the Blueprint is the requested origin, not an assigned or verified address. Replace it if Render assigns another hostname, then register that exact origin's `/api/auth/twitch/callback` with Twitch.
+
+## Implemented release changes
+
+- Production configuration rejects HTTP origins and callbacks at another origin or path. Local split-origin Vite/API development remains supported.
+- The SPA fallback serves public deep links while `/api`, `/api/*`, `/health/*`, and `/assets/*` preserve JSON 404 behavior for missing routes. The integrator reviewed the frontend's cross-owner fallback change and added the `/api` regression.
+- The HTTP integration fixture uses a temporary local PostgreSQL schema and an owned random-port Node process. It verifies readiness, signed-out rejection, public deep links, built CSS, missing-route handling, and listener shutdown before schema deletion. It does not use port `10000`.
+- Node 22 bounds, pinned pnpm 12.16.1, the direct Tailwind dependency, frozen lockfile, Vue browser globals, and test discovery exclusions are reconciled.
+- GitHub CI builds before running PostgreSQL integration tests. Its PostgreSQL 18 service and credentials are disposable CI fixtures. Official checkout/setup-node actions are pinned to release commits.
+- The Blueprint uses the supported `postgresMajorVersion` field, explicit storage, private DB ingress, manual deploys, `/health/ready`, Node 22, and generated application keys. Build installation explicitly retains development tools needed to compile the workspace.
+
+No authentication bypass, simulated production Twitch identity, or gameplay/schema incompatibility was introduced.
+
+## Verification evidence
+
+All local results below are from 2 November 2026. Captured logs and disposable fixtures remain ignored under `.cache/`; they are not release secrets or source artifacts.
+
+| Check                               | Result and boundary                                                                                                                                                                                                                                             |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Production configuration regression | Observed failures before the fix, then 10 passing configuration tests. Local split-origin behavior remains covered.                                                                                                                                             |
+| Missing `/api` regression           | Observed HTML 200 before the fix, then JSON 404 after it.                                                                                                                                                                                                       |
+| Full local suite                    | 70 tests across 17 files pass, including real local PostgreSQL persistence, auth, realtime, migration, leader, and HTTP fixtures. Twitch HTTP/WebSocket boundaries are mocked.                                                                                  |
+| Workspace typecheck and build       | Pass for the current source.                                                                                                                                                                                                                                    |
+| ESLint                              | `npm run lint -- --quiet` passes with zero errors; this does not claim zero warnings.                                                                                                                                                                           |
+| Clean production installation/build | Pinned pnpm frozen install with `NODE_ENV=production` and `--prod=false`, then web/server build, both exit 0 in an isolated copy without the existing `node_modules`.                                                                                           |
+| Fresh Vite dependency resolution    | CSS request returns 200 from the clean installation without a Tailwind alias. This is a CSS compilation check, not complete development-browser acceptance.                                                                                                     |
+| Blueprint validation                | Passes structural validation against the current [Render JSON Schema](https://render.com/schema/render.yaml.json), draft 2020-12. Resource creation and account-specific plan availability remain untested.                                                     |
+| Built public browser routes         | Signed-out Chrome checks `/guide`, `/settings`, `/setup`, and `/coop` at 390 and 1280 px: eight HTTP 200 results, English HTML, no horizontal overflow or page script errors.                                                                                   |
+| Phone header targets                | Every header link measures at least 44 px high at 390 px against the current built application. This closes the stale-build measurement gap from the frontend handoff; it does not change the shared listener.                                                  |
+| Independent source review           | Bounded read-only review of release configuration, HTTP/config tests, manifests, lockfile, and CI. Unsupported Blueprint version field fixed; direct Node fixture ownership uses a Windows-compatible file URL. Not a full audit of all earlier implementation. |
+
+The browser check does not verify signed-in workflows, inline guide link target sizing, image contrast, all keyboard stops, full visual fidelity, real Twitch chat, two broadcaster channels, or OBS Studio. The existing process on port `10000` was not stopped or replaced. No frontend Slice E completion beyond the measured checks is implied.
+
+## Remaining release gates
+
+1. Publish the reviewed source to the private repository and verify the exact commit's Linux GitHub CI result.
+2. The owner must save `RENDER_API_KEY` in the ignored `.env` to enable supported API configuration. At the last presence-only check it was absent. The user said they would save it; that is not evidence that it is already saved. Never paste it into chat or commit it.
+3. Restore the Zen browser control connection to the signed-in [Twitch developer console](https://dev.twitch.tv/console/apps), or have the owner create the app and save its ID/secret in `.env`. Browser inventory reports an unavailable host; no developer application has been created by this release pass.
+4. Provision only the confirmed Cluenite resources. Configure private DB ingress and HTTP readiness before claiming the target is ready. The connected Render creation tools cannot set both required options; do not use public DB defaults as a workaround.
+5. After the actual hostname is assigned, set `PUBLIC_ORIGIN` and `TWITCH_REDIRECT_URI`, register the exact callback, provide real Twitch app credentials, and generate the three application secrets securely. Deploy the verified commit with `TWITCH_ADAPTER=twitch`. Do not weaken production startup checks to get a green deployment.
+6. Record the service/database IDs, deployed commit, deploy ID, terminal deploy state, and assigned URL. Verify HTTPS `/health/live`, `/health/ready`, migrations, current CSS/deep links, unauthenticated rejection, and Socket.IO on that remote service.
+7. With consenting real accounts, verify OAuth, viewer chat -> persisted proof -> OBS reveal, reconnect, refresh/revocation, and the scoped overlay. REQ-FE-003 and two-channel co-op require their own real-account evidence. Use the [external checklist](../agent-handoff/TWITCH_EVENTSUB_CHECKLIST.md).
+
+## Rollout, recovery, and stop conditions
+
+There is no previous Cluenite production deploy to roll back to. Before the first successful release, correct configuration and redeploy the verified source commit. After the first success, retain its deploy ID and commit as the application rollback target; keep the database and encryption/signing keys stable. Rehearse redeployment and snapshot recovery against the actual target before claiming remote recovery works.
+
+Migrations run before listening and are transactional/additive in the current implementation. An application rollback does not undo database writes. Do not drop production tables or regenerate the encryption key to recover a failed release. Before subsequent migrations, verify a usable database backup/restore path and compatibility with the prior application version. The first database contains no existing production player data; remote restore and load/capacity drills have not been performed.
+
+Monitor Render deploy/build/runtime events and `/health/ready`; use authenticated `/api/ops/diagnostics` for participant-scoped session, outbox, and connection state. Do not log provider tokens or chat bodies. Incident ownership remains AndroLay; no external alert delivery or on-call integration is claimed.
+
+Stop if workspace/repository identity differs, the database would be public, required real credentials are absent, production configuration fails, CI fails, migrations fail, readiness fails, or the deployed source differs from the verified commit. Do not claim production acceptance until the required remote and real-account gates pass.

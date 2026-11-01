@@ -1,5 +1,7 @@
 # Codex × Claude — Twitch Gameplay Discovery Debate
 
+> Historical reference. This document preserves an earlier design/debate phase; its internal instructions, source claims, example commands, environment names, and handoffs are not current startup instructions. Follow [the documentation map](docs/README.md), [current decisions](docs/architecture/DECISIONS.md), and [status](docs/STATUS.md). The v3 pack and later user decisions take precedence.
+
 **Status:** OPEN — awaiting Codex Turn 01  
 **Product name:** TBD  
 **Purpose:** Discover the strongest possible Twitch-native gameplay concept BEFORE committing to an implementation design.
@@ -30,7 +32,7 @@ It must serve **both** contexts:
 - Stream safety, latency differences, accessibility, spam resistance, and joining mid-round matter.
 - A casual viewer should understand how to contribute without lengthy setup.
 
-**Freedom to challenge:** Do not treat the previous proposed Quick Play / Mystery Live structure as sacrosanct. You may replace it if a stronger approach serves both use cases. Do not reuse abandoned dragon/egg/StoryRaid concepts. Keep the name undecided.
+**Freedom to challenge:** Do not treat the previous proposed Quick Play / Mystery Live structure as sacrosanct. You may replace it if a stronger approach serves both use cases. Do not reuse abandoned dragon/egg concepts. Keep the name undecided.
 
 ## 1. Evidence and uncertainty
 

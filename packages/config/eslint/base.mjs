@@ -15,4 +15,26 @@ export default [
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   ...vue.configs["flat/recommended"],
+  {
+    files: ["**/*.vue"],
+    languageOptions: {
+      globals: {
+        URLSearchParams: "readonly",
+        clearInterval: "readonly",
+        console: "readonly",
+        crypto: "readonly",
+        document: "readonly",
+        fetch: "readonly",
+        HTMLDivElement: "readonly",
+        HTMLElement: "readonly",
+        Response: "readonly",
+        setInterval: "readonly",
+        SVGPathElement: "readonly",
+        window: "readonly",
+      },
+      parserOptions: {
+        parser: tseslint.parser,
+      },
+    },
+  },
 ];

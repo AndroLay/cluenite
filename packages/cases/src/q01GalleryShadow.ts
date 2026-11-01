@@ -5,6 +5,7 @@ import type { CaseDefinition } from "@cluenite/engine";
 export const Q01_GALLERY_SHADOW: CaseDefinition = {
   id: "Q01_GALLERY_SHADOW",
   version: 1,
+  mode: "quick",
   title: "The Gallery Shadow",
   premise:
     "A gallery alarm triggered at 21:10; access log says the main door remained locked. A moving low shadow is visible.",
@@ -30,17 +31,30 @@ export const Q01_GALLERY_SHADOW: CaseDefinition = {
       id: "SCHEDULE",
       label: "Maintenance schedule",
       teaser: "Maintenance rota for the gallery floor",
-      observation: "Cleaning robot R-07 is scheduled active in the gallery from 21:09 to 21:13.",
+      observation:
+        "Cleaning robot R-07 is scheduled active in the gallery from 21:09 to 21:13.",
       unlocks: ["SCHEDULE_R07"],
     },
   ],
   evidence: [
-    { id: "CAM_R07", label: "Tag R-07 on low object", category: "camera evidence" },
-    { id: "SCHEDULE_R07", label: "Robot R-07 active window", category: "schedule evidence" },
+    {
+      id: "CAM_R07",
+      label: "Tag R-07 on low object",
+      category: "camera evidence",
+    },
+    {
+      id: "SCHEDULE_R07",
+      label: "Robot R-07 active window",
+      category: "schedule evidence",
+    },
   ],
   connections: [{ a: "CAM_R07", b: "SCHEDULE_R07" }],
   verdicts: [
-    { id: "ROBOT", label: "The cleaning robot R-07", aliases: ["CLEANER", "R07"] },
+    {
+      id: "ROBOT",
+      label: "The cleaning robot R-07",
+      aliases: ["CLEANER", "R07"],
+    },
     { id: "THIEF", label: "An intruder", aliases: [] },
   ],
   acceptedVerdicts: ["ROBOT"],

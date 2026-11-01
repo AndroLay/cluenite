@@ -1,5 +1,7 @@
 # CLUENITE — Final Technical Architecture v2.1 (Render Edition)
 
+> Historical reference. This document preserves an earlier design/debate phase; its internal instructions, source claims, example commands, environment names, and handoffs are not current startup instructions. Follow [the documentation map](docs/README.md), [current decisions](docs/architecture/DECISIONS.md), and [status](docs/STATUS.md). The v3 pack and later user decisions take precedence.
+
 **Status:** Approved architecture target; Render migration of hosting decision only (not deployed)  
 **Product:** Twitch-native cooperative puzzle, mystery and deduction experience  
 **Coverage:** Quick Case (OBS companion), Mystery Live (solo channel), Co-op Mystery (two channels)  

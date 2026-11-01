@@ -25,26 +25,27 @@
   font-display: swap;
 }
 
-/* Cozy cinematic forensics palette, taken from the Cluenite blueprint art board: ink night,
-   stage panels, warm paper, gold for found, teal for verified, coral for refuted.
-   Scoped to the web app; packages/ui tokens are left untouched. */
+/* Cinematic Brown Noir palette from the Cluenite brief. Gold marks what matters, brass threads
+   linked evidence, parchment carries the text, and muted burgundy is reserved for contradictions.
+   Text tints (paper-dim, alert) are lighter than their surface colors so body copy stays at or above
+   4.5:1. Scoped to the web app; packages/ui tokens are left untouched. */
 :root {
-  --case-bg: #101c2a;
-  --case-panel: #192b3a;
-  --case-raised: #223748;
-  --case-rule: #2c4256;
-  --case-rule-strong: #4e6a82;
-  --case-gold: #f5be70;
-  --case-paper: #f4f0e6;
-  --case-paper-dim: #b7c6d3;
-  --case-slip: #f4f0e6;
-  --case-slip-ink: #14202e;
-  --case-amber: #f5be70;
-  --case-thread: #75d7bd;
-  --case-alert: #f0847e;
-  --case-confirm: #75d7bd;
-  --case-stamp: #1e7060;
-  --case-lilac: #b8aaf5;
+  --case-bg: #100d0a;          /* Obsidian: the desk */
+  --case-panel: #211811;       /* Deep Espresso: the case board */
+  --case-raised: #493021;      /* Dark Walnut: raised slips and buttons */
+  --case-rule: #65432d;        /* Aged Leather: hairlines */
+  --case-rule-strong: #a77a48; /* Antique Brass: strong rules */
+  --case-gold: #d9b681;        /* Warm Gold: found, current, important */
+  --case-paper: #e9decb;       /* Parchment: primary text */
+  --case-paper-dim: #bfb19a;   /* Parchment, dimmed: secondary text */
+  --case-slip: #e9decb;
+  --case-slip-ink: #211811;
+  --case-amber: #d9b681;
+  --case-thread: #c79a62;      /* linked evidence */
+  --case-alert: #d99a88;       /* contradiction text */
+  --case-burgundy: #64352f;    /* contradiction surface, used sparingly */
+  --case-confirm: #c79a62;
+  --case-stamp: #d9b681;
 
   --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
   --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
@@ -62,6 +63,7 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   scrollbar-color: var(--case-rule-strong) var(--case-bg);
+  scrollbar-width: thin;
 }
 
 /* The desk background lives on body so it covers the whole viewport, not just the shell box.
@@ -72,9 +74,9 @@ body {
   min-height: 100vh;
   margin: 0;
   background:
-    radial-gradient(ellipse 58% 46% at 76% 18%, rgba(245, 190, 112, 0.13), transparent 72%),
-    radial-gradient(900px 480px at -10% 110%, rgba(117, 215, 189, 0.05), transparent 60%),
-    radial-gradient(ellipse 120% 90% at 50% 40%, transparent 48%, rgba(5, 11, 18, 0.72) 100%),
+    radial-gradient(ellipse 58% 46% at 76% 18%, rgba(217, 182, 129, 0.12), transparent 72%),
+    radial-gradient(900px 480px at -10% 110%, rgba(167, 122, 72, 0.08), transparent 60%),
+    radial-gradient(ellipse 120% 90% at 50% 40%, transparent 48%, rgba(8, 5, 3, 0.78) 100%),
     var(--case-bg);
   background-attachment: fixed;
 }
@@ -82,6 +84,15 @@ body {
 ::selection {
   background: var(--case-amber);
   color: var(--case-slip-ink);
+}
+
+/* Keyboard focus is the gold ring everywhere. Mouse clicks stay quiet. */
+:focus-visible {
+  outline: 2px solid var(--case-gold);
+  outline-offset: 3px;
+}
+:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /* Set by App.vue when ?mode=obs is used as an OBS browser source. color-scheme: dark makes Chromium

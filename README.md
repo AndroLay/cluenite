@@ -1,58 +1,59 @@
 # Cluenite
 
-Cluenite is a Twitch-native social detective game. Viewers inspect evidence, connect facts, challenge theories, and help the streamer reach a proof-backed reveal. Quick Case and Mystery Live share one deterministic case engine; co-op adds two broadcaster workstations.
+Cluenite is a Twitch-native social detective game. Viewers inspect clues, connect evidence, challenge theories, and help the streamer reach a proof-backed reveal. Authored rules and server-side evidence determine progress.
 
-**Project state:** monorepo bootstrap. The documents define the product and target architecture; they do not mean the game or a live Twitch integration is implemented. See [implementation status](docs/STATUS.md) for current verification gaps.
+**Current state:** the Q01, M01, and C01 backend is implemented. Previous local integration runs used PostgreSQL and mocked Twitch. The web app includes a landing page, case menu, guide, settings, investigation boards, host controls, and an OBS presentation. OBS credential issuance and co-op invitations are not yet exposed in the web UI. Real Twitch, OBS Studio, Render, and player acceptance remain unverified. See [current status and verification](docs/STATUS.md).
 
-## Source of truth
+## Start here
 
-- [Implementation-ready pack v3.0](docs/reference/Cluenite_Implementation_Ready_v3/00_READ_FIRST/README.md) is the controlling specification. Its precedence is: v3 read-first decisions, v3 gameplay/contracts/delivery, v2.1 technical rationale where v3 leaves a gap, then v1 examples and assets.
-- [Gameplay and visual blueprint v1.0](docs/reference/Cluenite_Complete_Blueprint_v1.0/00_START_HERE/README.md) remains the original source for detailed case examples and visual assets; examples must be reviewed and adapted before production use.
-- [Technical architecture v2.1](CLUENITE_FINAL_ARCHITECTURE_v2.1_RENDER.md) remains a technical reference where v3 does not supersede it.
-- [Architecture decisions](docs/architecture/DECISIONS.md) records how these sources map to this workspace and which project choices are still only local setup.
+- [Run locally](HOW_TO_RUN.md)
+- [Documentation map and source precedence](docs/README.md)
+- [Development and English language policy](CONTRIBUTING.md)
+- [Frontend target: eight reference screens and implementation sequence](docs/design/frontend-target/README.md)
+- [Architecture decisions](docs/architecture/DECISIONS.md)
+- [Backend API and realtime contracts](docs/agent-handoff/BACKEND_CONTRACTS.md)
+- [Collaboration and ownership](TEAM_PROTOCOL.md)
 
-## Workspace
+Documentation, web copy, authored content, comments, tests, and development instructions use English. Preserve established identifiers, proper names, and external user content.
 
-- `apps/server`: Fastify API, Twitch OAuth/EventSub ingress, Socket.IO, persistence, and session orchestration.
-- `apps/web`: creator dashboard, mystery stage, and OBS overlay routes.
-- `packages/contracts`: Zod schemas and shared wire types.
-- `packages/engine`: pure deterministic state transitions and proof evaluation.
-- `packages/cases`: versioned authored cases and validation.
-- `packages/ui`: accessible DOM components and design tokens.
-- `packages/graphics`: browser-only PixiJS scenes and GSAP timelines.
-- `packages/config`: shared TypeScript, ESLint, and Vitest configuration.
-- `docs/reference`: frozen source documents and visual assets for the original v1.0 blueprint and the controlling v3.0 pack. The v3 pack includes preserved v1 and v2.1 references.
+## Experiences
 
-## Toolchain
+| Experience    | Runtime case                       | Purpose                                                                                                             |
+| ------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Quick Case    | Q01 — The Gallery Shadow           | A focused evidence-and-verdict round; 30–90 seconds is a design target, not a measured result.                      |
+| Mystery Live  | M01 — The Missing Festival Trophy  | A longer investigation with evidence, event ordering, theory challenges, and hints.                                 |
+| Co-op Mystery | C01 — Signal of the Invisible Ship | Complementary station actions from two consenting broadcaster accounts; browser invitation controls are unfinished. |
 
-- Node.js 22.12 or newer in the Node 22 line.
-- pnpm 12.16.1, pinned through Corepack and the root `packageManager` field.
-- Runtime: Vue 3, Vite, Tailwind CSS, Pinia, PixiJS 8, GSAP, Fastify, Zod, Socket.IO, PostgreSQL, and Drizzle ORM.
+The public Quick Case sample at `/?view=quick` is **A Missing Manuscript**, a local interface demonstration. It is separate from the authored Q01 case and does not validate proof or contact Twitch. The Mystery Live sample is at `/?view=mystery`.
+
+## Workspace and toolchain
+
+Node.js 22.12+ in the Node 22 line; pnpm 12.16.1. The stack is TypeScript, Vue 3/Vite/Pinia, Tailwind CSS, PixiJS 8, GSAP, Fastify, Zod, Socket.IO, and PostgreSQL with Drizzle schema declarations and SQL migrations/queries.
+
+| Path                 | Responsibility                                                                                        |
+| -------------------- | ----------------------------------------------------------------------------------------------------- |
+| `apps/web`           | Public site, samples, live investigation presentation, host controls, and read-only OBS presentation. |
+| `apps/server`        | HTTP API, OAuth, EventSub ingestion, Socket.IO, persistence, and orchestration.                       |
+| `packages/contracts` | Shared Zod schemas and transport types.                                                               |
+| `packages/engine`    | Pure deterministic transitions, proof checks, and public snapshots.                                   |
+| `packages/cases`     | Versioned authored Q01/M01/C01 definitions; private truth stays server-side.                          |
+| `packages/ui`        | Shared audio utilities and legacy token exports.                                                      |
+| `packages/graphics`  | Shared browser animation timelines; current scenes live in `apps/web/src/scene`.                      |
+| `packages/config`    | Shared TypeScript, ESLint, and Vitest defaults.                                                       |
+
+The active visual direction is **Cinematic Brown Noir**, documented in [web design](apps/web/DESIGN.md). The [eight user-provided target screens](docs/design/frontend-target/README.md) define the visual development target, with shared visuals and public pages first. Frozen blue-palette reference assets do not override it. F1 public pages are implemented; [frontend progress](docs/agent-handoff/FRONTEND_PROGRESS.md) records their verification limits and the remaining live-flow milestones.
 
 ## Local setup
 
+Provision a local PostgreSQL database, then follow [HOW_TO_RUN.md](HOW_TO_RUN.md) for environment setup and startup. Never overwrite an existing `.env` or commit secrets. Local tools/data may exist under ignored `.local/` and `.cache/`; these directories are not part of a fresh checkout.
+
 ```powershell
-npx --yes pnpm@12.16.1 install
+npx --yes pnpm@12.16.1 install --frozen-lockfile
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
-npx --yes pnpm@12.16.1 dev
+# Set DATABASE_URL and the required local settings in .env before starting.
+npm run dev
 ```
 
-The server needs PostgreSQL for its readiness check. PostgreSQL 18.6 binaries and this workspace's database files live under ignored `.local/postgresql/`. Start the local server before `pnpm dev`, and stop it when you're finished:
+## Deployment boundary
 
-```powershell
-& '.local\postgresql\18.6\pgsql\bin\pg_ctl.exe' -D '.local\postgresql\data' -l '.local\postgresql\postgres.log' -o '-h 127.0.0.1 -p 5432' start
-& '.local\postgresql\18.6\pgsql\bin\pg_ctl.exe' -D '.local\postgresql\data' stop -m fast
-```
-
-Populate local secrets only in `.env`; never commit that file. Do not overwrite an existing `.env` with `.env.example` because its database URL must match the local database credentials. Playwright's browser runtime is kept under `.cache/playwright`.
-
-In PowerShell, set the browser path in each terminal before installing or using Playwright:
-
-```powershell
-$env:PLAYWRIGHT_BROWSERS_PATH = Join-Path (Get-Location).Path '.cache\playwright'
-npx --yes pnpm@12.16.1 exec playwright install chromium
-```
-
-## Deployment
-
-`render.yaml` describes one always-on web service and one PostgreSQL database in Singapore. The file is an infrastructure definition only; creating or syncing it with Render is a separate deployment action.
+The user authorized deployment to Andro's Render workspace and creation of the private [AndroLay/cluenite repository](https://github.com/AndroLay/cluenite). `render.yaml` defines one paid always-on web service and a paid PostgreSQL 18 database in Singapore, with private database ingress, manual deploys, and `/health/ready`. The [backend release record](docs/operations/BACKEND_RELEASE_2026-11-02.md) separates local checks, source publication, and actual deployment evidence. Real Twitch credentials and supported Render configuration access are still required; a Blueprint is not proof of a live deployment. See the [external verification checklist](docs/agent-handoff/TWITCH_EVENTSUB_CHECKLIST.md).

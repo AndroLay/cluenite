@@ -1,6 +1,9 @@
 import { createApp } from "vue";
 import { createPinia } from "pinia";
-import App from "./App.vue";
+import SiteRoot from "./site/SiteRoot.vue";
+import { startSiteSettings } from "./site/settings";
 import "./style.css";
+import "./site/site.css";
 
-createApp(App).use(createPinia()).mount("#app");
+startSiteSettings();
+createApp(SiteRoot).use(createPinia()).mount("#app");

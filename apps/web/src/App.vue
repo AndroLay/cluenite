@@ -1,45 +1,82 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from "vue";
+import { computed, defineAsyncComponent, onBeforeUnmount, ref } from "vue";
 import { createSfxPlayer, type SfxCue } from "@cluenite/ui";
-import type { CommandResult, RoundSnapshot, SessionControl } from "@cluenite/contracts";
+import type {
+  CommandResult,
+  ConnectionStatus,
+  RoundSnapshot,
+  SessionControl,
+} from "@cluenite/contracts";
 import DashboardPanel from "./components/DashboardPanel.vue";
 import QuickCaseOverlay from "./components/QuickCaseOverlay.vue";
+import TwitchConnectionStatus from "./components/TwitchConnectionStatus.vue";
 import { createAmbience } from "./audio/ambience";
-import { connectRound, type ConnectionState, type RoundClient } from "./net/roundClient";
+import { siteSettings } from "./site/settings";
 import {
+  connectRound,
+  type ConnectionState,
+  type RoundClient,
+} from "./net/roundClient";
+import {
+  PREVIEW_HINT,
   PREVIEW_OBSERVATION,
   PREVIEW_REVEAL,
   createPreviewQuickCase,
   quickCaseFromSnapshot,
   type QuickCaseView,
 } from "./quickCase/viewModel";
+import { M01_PREVIEW_SNAPSHOT } from "./mysteryLive/previewSnapshot";
+const MysteryLiveBoard = defineAsyncComponent(
+  () => import("./components/MysteryLiveBoard.vue"),
+);
 
 // Query parameters:
-//   (none)                        UI-only preview with placeholder data, no server
-//   ?session=<id>                 live overlay for one round, interactive
-//   ?session=<id>&view=dashboard  live overlay plus the host command panel
-//   ?mode=obs&session=<id>        read-only live overlay on a transparent page for OBS
+//   (none)                        Mystery Live sample investigation
+//   ?view=quick                   Quick Case sample
+//   ?session=<id>                 live experience selected from the server snapshot
+//   ?session=<id>&view=dashboard  live experience plus the host command panel
+//   ?mode=obs&session=<id>        read-only Quick Case overlay for OBS
 const params = new URLSearchParams(window.location.search);
 const obsMode = params.get("mode") === "obs";
 const rawSession = params.get("session");
 const sessionId: string | null =
-  rawSession !== null && /^[A-Za-z0-9_-]{1,64}$/.test(rawSession) ? rawSession : null;
+  rawSession !== null && /^[A-Za-z0-9_-]{1,64}$/.test(rawSession)
+    ? rawSession
+    : null;
 const liveMode = rawSession !== null;
-const dashboardMode = sessionId !== null && !obsMode && params.get("view") === "dashboard";
+const dashboardMode =
+  sessionId !== null && !obsMode && params.get("view") === "dashboard";
+const quickSurface = params.get("view") === "quick";
+const quickHref = sessionId
+  ? `/?session=${encodeURIComponent(sessionId)}&view=quick`
+  : "/?view=quick";
+const mysteryHref = sessionId
+  ? `/?session=${encodeURIComponent(sessionId)}`
+  : "/?view=mystery";
+const dashboardHref = sessionId
+  ? `/?session=${encodeURIComponent(sessionId)}&view=dashboard`
+  : "/play";
 // A live OBS overlay only shows server state. Its clicks never send commands.
 const readOnly = obsMode && liveMode;
-const sessionError = liveMode && sessionId === null ? "Invalid session id in the URL." : null;
+const sessionError =
+  liveMode && sessionId === null ? "Invalid session id in the URL." : null;
 
 document.documentElement.classList.toggle("obs-mode", obsMode);
 
 const previewView = ref<QuickCaseView>(createPreviewQuickCase());
 const liveView = ref<QuickCaseView | null>(null);
-const connection = ref<ConnectionState>(liveMode && sessionId !== null ? "connecting" : "disconnected");
+const liveSnapshot = ref<RoundSnapshot | null>(null);
+const connection = ref<ConnectionState>(
+  liveMode && sessionId !== null ? "connecting" : "disconnected",
+);
+const twitchConnection = ref<ConnectionStatus | null>(null);
 const notice = ref<{ tone: "ok" | "warn"; text: string } | null>(null);
-const muted = ref(false);
+const muted = ref(!siteSettings.soundOn);
 const sfx = createSfxPlayer();
 // Room tone starts on the first gesture on the page. OBS never creates it, so the stream audio is unchanged.
 const ambience = obsMode ? null : createAmbience();
+sfx.setMuted(muted.value);
+ambience?.setMuted(muted.value);
 
 // Set only after the server accepts a verdict, or after a preview verdict. The server snapshot
 // carries the same value, which is what OBS reads; the local pick covers the page that sent it.
@@ -48,12 +85,27 @@ const currentView = computed<QuickCaseView | null>(() => {
   const base = liveMode ? liveView.value : previewView.value;
   return base === null
     ? null
-    : { ...base, chosenVerdictId: chosenVerdictId.value ?? base.chosenVerdictId };
+    : {
+        ...base,
+        chosenVerdictId: chosenVerdictId.value ?? base.chosenVerdictId,
+      };
 });
+const currentMysterySnapshot = computed<RoundSnapshot | null>(() =>
+  liveMode ? liveSnapshot.value : M01_PREVIEW_SNAPSHOT,
+);
+const mysterySurface = computed(
+  () =>
+    !obsMode &&
+    !quickSurface &&
+    (!liveMode ||
+      liveSnapshot.value?.caseMode === "mystery" ||
+      liveSnapshot.value?.caseMode === "coop"),
+);
 const connectionBanner = computed<string | null>(() => {
   if (!liveMode || sessionError !== null) return null;
   if (connection.value === "connecting") return "Connecting to server…";
-  if (connection.value === "disconnected") return "Disconnected from server — reconnecting";
+  if (connection.value === "disconnected")
+    return "Disconnected from server — reconnecting";
   return null;
 });
 
@@ -65,13 +117,17 @@ function cue(name: SfxCue): void {
 // Counts evidence that was unlocked or linked. Used only to pick a sound cue.
 function progressOf(view: QuickCaseView): number {
   return view.clues.reduce(
-    (total, clue) => total + (clue.status === "locked" ? 0 : 1) + (clue.status === "linked" ? 1 : 0),
+    (total, clue) =>
+      total +
+      (clue.status === "locked" ? 0 : 1) +
+      (clue.status === "linked" ? 1 : 0),
     0,
   );
 }
 
 function applySnapshot(snapshot: RoundSnapshot): void {
   const previous = liveView.value;
+  liveSnapshot.value = snapshot;
   const next = quickCaseFromSnapshot(snapshot);
   liveView.value = next;
   if (previous === null) return;
@@ -81,26 +137,41 @@ function applySnapshot(snapshot: RoundSnapshot): void {
 
 // Accepted and already-known results are informational. Everything else is a warning.
 function describe(result: CommandResult): string {
-  const missing = result.missing.length > 0 ? ` Missing: ${result.missing.join(", ")}.` : "";
+  const missing =
+    result.missing.length > 0 ? ` Missing: ${result.missing.join(", ")}.` : "";
   return `${result.code}: ${result.message}${missing}`;
 }
 
 function showResult(result: CommandResult | null): void {
   if (result === null) {
-    notice.value = { tone: "warn", text: "Not connected. The command was not sent." };
+    notice.value = {
+      tone: "warn",
+      text: "Not connected. The command was not sent.",
+    };
     return;
   }
-  notice.value = { tone: result.code.startsWith("ACCEPTED") ? "ok" : "warn", text: describe(result) };
+  notice.value = {
+    tone: result.code.startsWith("ACCEPTED") ? "ok" : "warn",
+    text: describe(result),
+  };
 }
 
 const client: RoundClient | null =
   sessionId !== null
-    ? connectRound(sessionId, {
-        onSnapshot: applySnapshot,
-        onConnection: (state) => {
-          connection.value = state;
+    ? connectRound(
+        sessionId,
+        {
+          onSnapshot: applySnapshot,
+          onConnection: (state) => {
+            connection.value = state;
+            if (state !== "connected") twitchConnection.value = null;
+          },
+          onConnectionStatus: (status) => {
+            twitchConnection.value = status;
+          },
         },
-      })
+        { requireOverlay: obsMode },
+      )
     : null;
 
 async function sendCommand(text: string): Promise<void> {
@@ -121,40 +192,83 @@ function previewInspect(clueId: string): void {
   if (!clue || clue.status !== "locked") return;
   clue.status = "unlocked";
   clue.observation = PREVIEW_OBSERVATION;
+  const evidenceByClue: Record<string, { id: string; label: string }[]> = {
+    CAM: [{ id: "CAM_R07", label: "Tag R-07 on low object" }],
+    // ACCESS is a narrative clue only in Q01; it unlocks no evidence and is not linkable.
+    ACCESS: [],
+    SCHEDULE: [{ id: "SCHEDULE_R07", label: "Robot R-07 active window" }],
+  };
+  for (const item of evidenceByClue[clueId] ?? []) {
+    if (!view.evidence.some((evidence) => evidence.id === item.id)) {
+      view.evidence.push({ ...item, team: null, shared: false });
+    }
+  }
   if (view.stage === "observe") view.stage = "connect";
   cue("evidence");
 }
 
-function previewLink(clueA: string, clueB: string): void {
+function previewLink(evidenceA: string, evidenceB: string): void {
   const view = previewView.value;
-  const picked = view.clues.filter(
-    (clue) => (clue.id === clueA || clue.id === clueB) && clue.status === "unlocked",
+  const picked = view.evidence.filter(
+    (item) => item.id === evidenceA || item.id === evidenceB,
   );
   if (view.stage !== "connect" || picked.length !== 2) return;
-  for (const clue of picked) clue.status = "linked";
+  for (const item of picked) {
+    const clueId =
+      item.id === "CAM_R07"
+        ? "CAM"
+        : item.id === "SCHEDULE_R07"
+          ? "SCHEDULE"
+          : null;
+    const clue = clueId
+      ? view.clues.find((candidate) => candidate.id === clueId)
+      : null;
+    if (clue) clue.status = "linked";
+  }
   view.stage = "challenge";
   cue("evidence");
 }
 
 function previewVerdict(verdictId: string): void {
   const view = previewView.value;
-  if (view.stage !== "challenge" || !view.verdicts.some((verdict) => verdict.id === verdictId)) return;
+  if (
+    view.stage !== "challenge" ||
+    !view.verdicts.some((verdict) => verdict.id === verdictId)
+  )
+    return;
   view.stage = "reveal";
   view.revealText = PREVIEW_REVEAL;
   chosenVerdictId.value = verdictId;
   cue("reveal");
 }
 
+// Clue IDs go to "look". Link takes two evidence IDs (for example CAM_R07 SCHEDULE_R07), not clue IDs.
 function onInspect(clueId: string): void {
   if (readOnly) return;
-  if (client !== null) void sendCommand(`!inspect ${clueId}`);
+  if (client !== null) void sendCommand(`!look ${clueId}`);
   else previewInspect(clueId);
 }
 
-function onLink(clueA: string, clueB: string): void {
+function onLink(evidenceA: string, evidenceB: string): void {
   if (readOnly) return;
-  if (client !== null) void sendCommand(`!link ${clueA} ${clueB}`);
-  else previewLink(clueA, clueB);
+  if (client !== null) void sendCommand(`!link ${evidenceA} ${evidenceB}`);
+  else previewLink(evidenceA, evidenceB);
+}
+
+function previewHint(): void {
+  const view = previewView.value;
+  if (!view.availableActions.includes("hint")) return;
+  view.currentHint = PREVIEW_HINT;
+  view.hintLevel += 1;
+  // The preview has one hint. A server snapshot would drop "hint" once hints run out.
+  view.availableActions = view.availableActions.filter((action) => action !== "hint");
+  cue("evidence");
+}
+
+function onHint(): void {
+  if (readOnly) return;
+  if (client !== null) void sendCommand("!hint");
+  else previewHint();
 }
 
 async function onVerdict(verdictId: string): Promise<void> {
@@ -171,6 +285,7 @@ async function onVerdict(verdictId: string): Promise<void> {
 
 function onToggleMute(): void {
   muted.value = !muted.value;
+  siteSettings.soundOn = !muted.value;
   sfx.setMuted(muted.value);
   ambience?.setMuted(muted.value);
   void sfx.unlock();
@@ -190,27 +305,78 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="shell" :class="{ 'is-obs': obsMode }">
-    <header v-if="!obsMode" class="masthead">
-      <h1>
-        <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
-          <circle cx="10" cy="10" r="6.5" />
+  <main
+    class="shell"
+    :class="{ 'is-obs': obsMode }"
+  >
+    <header
+      v-if="!obsMode"
+      class="topbar"
+    >
+      <a
+        class="brand"
+        :href="mysteryHref"
+        aria-label="Cluenite home"
+      >
+        <svg
+          class="mark"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <circle
+            cx="10"
+            cy="10"
+            r="6.5"
+          />
           <path d="M14.8 14.8 20.5 20.5" />
         </svg>
-        Cluenite
-      </h1>
-      <p class="intro">Periksa petunjuk, hubungkan fakta, lalu buktikan teorimu bersama komunitas.</p>
-      <p class="meta">SOCIAL DETECTIVE GAME</p>
-
-      <p v-if="!liveMode" class="banner note" role="note">
-        PRATINJAU UI — data simulasi, bukan chat Twitch dan bukan hasil verifikasi engine
-      </p>
+        <span>Cluenite</span>
+      </a>
+      <nav
+        class="primary-nav"
+        aria-label="Game modes"
+      >
+        <a
+          :href="mysteryHref"
+          :aria-current="mysterySurface ? 'page' : undefined"
+        >Mystery Live</a>
+        <a
+          :href="quickHref"
+          :aria-current="quickSurface ? 'page' : undefined"
+        >Quick Case</a>
+        <a
+          v-if="liveMode && !obsMode"
+          :href="dashboardHref"
+        >Host controls</a>
+      </nav>
+      <div class="topbar-status">
+        <span
+          v-if="!liveMode"
+          class="sample-indicator"
+        ><i aria-hidden="true" /> Sample investigation</span>
+        <TwitchConnectionStatus
+          v-if="liveMode && connection === 'connected'"
+          :status="twitchConnection"
+          :pending="twitchConnection === null"
+        />
+      </div>
     </header>
 
     <div class="board">
-      <p v-if="sessionError" class="banner" role="alert">{{ sessionError }}</p>
-      <p v-else-if="connectionBanner" class="banner" role="status">{{ connectionBanner }}</p>
-
+      <p
+        v-if="sessionError"
+        class="banner"
+        role="alert"
+      >
+        {{ sessionError }}
+      </p>
+      <p
+        v-else-if="connectionBanner"
+        class="banner"
+        role="status"
+      >
+        {{ connectionBanner }}
+      </p>
       <DashboardPanel
         v-if="dashboardMode"
         :session-id="sessionId ?? ''"
@@ -221,26 +387,48 @@ onBeforeUnmount(() => {
         @control="sendControl"
       />
 
+      <MysteryLiveBoard
+        v-if="mysterySurface && currentMysterySnapshot"
+        :snapshot="currentMysterySnapshot"
+        :interactive="liveMode && connection === 'connected' && !readOnly"
+        :connection="connection"
+        :notice="notice"
+        @command="sendCommand"
+      />
       <QuickCaseOverlay
-        v-if="currentView"
+        v-else-if="currentView"
         :view="currentView"
         :muted="muted"
         :obs="obsMode"
+        :notice="notice"
         @inspect="onInspect"
         @link="onLink"
         @verdict="onVerdict"
+        @hint="onHint"
         @toggle-mute="onToggleMute"
       />
-      <p v-else-if="!obsMode" class="status">Waiting for the round…</p>
+      <p
+        v-else-if="!obsMode"
+        class="status"
+      >
+        Waiting for the round…
+      </p>
 
-      <button v-if="!obsMode && !liveMode" type="button" class="reset" @click="onReset">Reset pratinjau</button>
+      <button
+        v-if="!obsMode && !liveMode && quickSurface"
+        type="button"
+        class="reset"
+        @click="onReset"
+      >
+        Reset pratinjau
+      </button>
     </div>
   </main>
 </template>
 
 <style scoped>
-/* Case-file layout: masthead on the left, evidence board on the right from 960px.
-   Single column below that. OBS mode drops all chrome and keeps only the board. */
+/* Scene first: the evidence board is the main column. From 1240px the masthead becomes a compact
+   spine beside it; below that the masthead stacks above the board. OBS mode drops all chrome. */
 .shell {
   box-sizing: border-box;
   min-height: 100vh;
@@ -282,7 +470,7 @@ h1 {
   gap: 0.16em;
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(3.25rem, 10vw, 6rem);
+  font-size: clamp(2.75rem, 6vw, 3.25rem);
   font-weight: 600;
   line-height: 0.9;
   letter-spacing: -0.04em;
@@ -337,14 +525,30 @@ h1 {
   max-width: 100%;
 }
 
+/* One authored motion moment: on load the evidence board rises into the lamp light.
+   Skipped in OBS, where the browser source must stay still. Reduced motion is handled globally. */
+@keyframes board-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.shell:not(.is-obs) .board {
+  animation: board-rise 900ms var(--ease-out-expo) both;
+}
+
 .banner {
   box-sizing: border-box;
   width: 100%;
   margin: 0;
   padding: 10px 14px;
-  border: 1px solid rgba(240, 132, 126, 0.55);
+  border: 1px solid rgba(217, 154, 136, 0.55);
   border-radius: var(--radius-slip);
-  background: rgba(240, 132, 126, 0.08);
+  background: rgba(217, 154, 136, 0.08);
   color: var(--case-alert);
   font-size: 0.8125rem;
   font-weight: 600;
@@ -352,8 +556,8 @@ h1 {
   letter-spacing: 0.01em;
 }
 .banner.note {
-  border-color: rgba(245, 190, 112, 0.5);
-  background: rgba(245, 190, 112, 0.08);
+  border-color: rgba(217, 182, 129, 0.5);
+  background: rgba(217, 182, 129, 0.08);
   color: var(--case-amber);
 }
 .banner[role="status"] {
@@ -384,22 +588,6 @@ h1 {
     color var(--dur-state) ease;
 }
 .reset:hover {
-/* One authored motion moment: on load the evidence board rises into the lamp light.
-   Skipped in OBS, where the browser source must stay still. Reduced motion is handled globally. */
-@keyframes board-rise {
-  from {
-    opacity: 0;
-    transform: translateY(18px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-.shell:not(.is-obs) .board {
-  animation: board-rise 900ms var(--ease-out-expo) both;
-}
-
   border-color: var(--case-paper-dim);
   color: var(--case-paper);
 }
@@ -408,39 +596,184 @@ h1 {
   outline-offset: 3px;
 }
 
-/* Two columns need ~434px for the masthead wordmark beside the 600px board; that holds from
-   about 1240px. Between 960px and 1240px the layout stays single-column (masthead, then board). */
+/* Scene first. From 960px the board grows to 880px so the scene is the largest element on the page.
+   From 1240px the masthead is a fixed 340px spine beside the board (the wordmark needs about 310px at
+   the 3.25rem cap); the board takes the rest of the row, up to a 1400px shell. */
+@media (min-width: 960px) {
+  .shell:not(.is-obs) .board {
+    width: min(100%, 880px);
+  }
+}
 @media (min-width: 1240px) {
   .shell:not(.is-obs) {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 600px);
-    column-gap: clamp(40px, 6vw, 96px);
+    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+    column-gap: clamp(32px, 4vw, 64px);
     align-items: start;
     width: 100%;
-    max-width: 1240px;
+    max-width: 1400px;
     margin: 0 auto;
   }
   .masthead {
     grid-column: 1;
     grid-row: 1;
-    position: sticky;
-    top: 40px;
+    max-width: none;
   }
-  .board {
+  .shell:not(.is-obs) .board {
     grid-column: 2;
     grid-row: 1;
+    width: 100%;
+  }
+}
+
+/* Current Mystery Live composition: compact brand/navigation above a full-width investigation. */
+.shell:not(.is-obs) {
+  grid-template-columns: minmax(0, 1fr);
+  width: 100%;
+  max-width: none;
+  gap: 24px;
+  padding: 0 clamp(16px, 3.2vw, 52px) 48px;
+}
+
+.topbar {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 30px;
+  width: 100%;
+  min-height: 76px;
+  border-bottom: 1px solid rgba(167, 122, 72, 0.42);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  flex: none;
+  color: var(--case-paper);
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  text-decoration: none;
+}
+
+.brand .mark {
+  flex: none;
+  width: 1.05em;
+  height: 1.05em;
+  fill: none;
+  stroke: var(--case-amber);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.primary-nav {
+  display: flex;
+  align-items: stretch;
+  align-self: stretch;
+  gap: clamp(14px, 2.2vw, 32px);
+}
+
+.primary-nav a {
+  display: inline-flex;
+  position: relative;
+  align-items: center;
+  padding: 2px 0;
+  color: var(--case-paper-dim);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.primary-nav a:hover,
+.primary-nav a[aria-current="page"] {
+  color: var(--case-gold);
+}
+
+.primary-nav a[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: -29px;
+  height: 2px;
+  background: var(--case-gold);
+}
+
+.topbar-status {
+  display: flex;
+  justify-content: flex-end;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.sample-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--case-paper-dim);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.sample-indicator i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--case-amber);
+}
+
+.shell:not(.is-obs) .board {
+  grid-column: 1;
+  grid-row: auto;
+  width: min(100%, 1720px);
+  margin-inline: auto;
+  justify-items: stretch;
+  animation-duration: 700ms;
+}
+
+@media (max-width: 760px) {
+  .shell:not(.is-obs) {
+    gap: 16px;
+    padding-inline: 14px;
+  }
+
+  .topbar {
+    flex-wrap: wrap;
+    gap: 0 20px;
+    min-height: 0;
+    padding-top: 15px;
+  }
+
+  .brand {
+    font-size: 1.2rem;
+  }
+
+  .primary-nav {
+    order: 3;
+    width: 100%;
+    min-height: 42px;
+    gap: 22px;
+    overflow-x: auto;
+  }
+
+  .primary-nav a[aria-current="page"]::after {
+    bottom: -13px;
+  }
+
+  .sample-indicator {
+    font-size: 0.625rem;
+  }
+}
+
+@media (max-width: 430px) {
+  .topbar-status :deep(.connection-status) {
+    padding: 6px 8px;
+    font-size: 0.6875rem;
   }
 }
 </style>
-
-/* Wide desktop: the room takes a larger share of the screen, so the scene reads as a place.
-   The wordmark needs ~434px. At 680px the board needs a wider shell (1400px max), otherwise the
-   masthead column falls below that width and the wordmark runs under the board. */
-@media (min-width: 1360px) {
-  .shell:not(.is-obs) {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 680px);
-    max-width: 1400px;
-  }
-  .shell:not(.is-obs) .board {
-    width: min(100%, 680px);
-  }
-}

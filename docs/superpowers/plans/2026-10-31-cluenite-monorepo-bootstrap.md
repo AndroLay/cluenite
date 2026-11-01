@@ -1,5 +1,7 @@
 # Cluenite Monorepo Bootstrap Plan
 
+> Historical implementation plan. Its requirements, checkboxes, authorization, and source precedence belong to the recorded execution. For current work, read [the documentation map](../../README.md), [status](../../STATUS.md), and [current decisions](../../architecture/DECISIONS.md). Do not repeat completed work or carry old permissions into a new task.
+
 > **For agentic workers:** Use `superpowers:executing-plans` to carry out this plan inline. The user authorized workspace scaffolding and dependency installation; no subagents are needed.
 
 **Goal:** Establish a clean, installable Cluenite monorepo using the Render v2.1 technical architecture and the v1.0 gameplay blueprint.

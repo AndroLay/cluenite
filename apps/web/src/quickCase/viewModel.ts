@@ -20,6 +20,13 @@ export interface QuickVerdict {
   label: string;
 }
 
+export interface QuickEvidence {
+  id: string;
+  label: string;
+  team: "A" | "B" | null;
+  shared: boolean;
+}
+
 // Elapsed time as the server reported it, plus the local moment it arrived. While the
 // timer runs, the page adds local time to elapsedMs, so no clock sync with the server is needed.
 export interface QuickTimer {
@@ -37,20 +44,30 @@ export interface QuickCaseView {
   paused: boolean;
   timer: QuickTimer;
   clues: QuickClue[];
+  evidence: QuickEvidence[];
+  availableActions: string[];
   verdicts: QuickVerdict[];
   // The verdict the server accepted, from the snapshot. Only the reveal stage shows it.
   chosenVerdictId: string | null;
   revealText: string | null;
+  // The latest hint the server revealed (null until someone asks for one), and how many were used.
+  currentHint: string | null;
+  hintLevel: number;
 }
 
 export const PREVIEW_OBSERVATION =
   "Placeholder observation. Real text comes from the case engine after an accepted inspect.";
 export const PREVIEW_REVEAL =
   "Placeholder reveal. Real text comes from the case engine after a server-verified proof.";
+export const PREVIEW_HINT =
+  "Placeholder hint. Real hints are authored in the case and revealed by the server.";
 
 // Maps a server snapshot to the overlay view. The server already strips answers and
 // proof data from the snapshot, so this is a plain copy.
-export function quickCaseFromSnapshot(snapshot: RoundSnapshot, receivedAt: number = Date.now()): QuickCaseView {
+export function quickCaseFromSnapshot(
+  snapshot: RoundSnapshot,
+  receivedAt: number = Date.now(),
+): QuickCaseView {
   return {
     source: snapshot.source,
     title: snapshot.title,
@@ -58,7 +75,11 @@ export function quickCaseFromSnapshot(snapshot: RoundSnapshot, receivedAt: numbe
     question: snapshot.question,
     stage: snapshot.stage,
     paused: snapshot.paused,
-    timer: { elapsedMs: snapshot.timer.elapsedMs, running: snapshot.timer.running, receivedAt },
+    timer: {
+      elapsedMs: snapshot.timer.elapsedMs,
+      running: snapshot.timer.running,
+      receivedAt,
+    },
     clues: snapshot.clues.map((clue) => ({
       id: clue.id,
       label: clue.label,
@@ -66,9 +87,21 @@ export function quickCaseFromSnapshot(snapshot: RoundSnapshot, receivedAt: numbe
       observation: clue.observation,
       status: clue.status,
     })),
-    verdicts: snapshot.verdicts.map((verdict) => ({ id: verdict.id, label: verdict.label })),
+    evidence: snapshot.evidence.map((item) => ({
+      id: item.id,
+      label: item.label,
+      team: item.team,
+      shared: item.shared,
+    })),
+    availableActions: snapshot.availableActions,
+    verdicts: snapshot.verdicts.map((verdict) => ({
+      id: verdict.id,
+      label: verdict.label,
+    })),
     chosenVerdictId: snapshot.chosenVerdictId ?? null,
     revealText: snapshot.revealText,
+    currentHint: snapshot.currentHint,
+    hintLevel: snapshot.hintLevel,
   };
 }
 
@@ -122,11 +155,15 @@ export function createPreviewQuickCase(): QuickCaseView {
         status: "locked",
       },
     ],
+    evidence: [],
+    availableActions: ["look", "link", "hint", "solve"],
     verdicts: [
       { id: "ROBOT", label: "The cleaning robot R-07" },
       { id: "THIEF", label: "An intruder" },
     ],
     chosenVerdictId: null,
     revealText: null,
+    currentHint: null,
+    hintLevel: 0,
   };
 }

@@ -1,8 +1,14 @@
-# Server module boundaries
+# Backend source layout
 
-Create one folder per domain from the architecture: auth, cases, sessions,
-actions, evidence, realtime, Twitch, and persistence. Put HTTP and Socket.IO
-transport code at the boundary; keep authoritative state changes deterministic
-and validated by shared contracts. The bootstrap intentionally has no game
-module until its state transitions and proof rules are implemented from the
-blueprint.
+- `auth/`: OAuth callback, host session cookies, CSRF checks, and scoped OBS
+  credentials.
+- `db/`: PostgreSQL migrations, schema declarations, persistent round state,
+  event history, deduplication, and transactional outbox.
+- `twitch/`: Twitch API client, normalized chat messages, and EventSub socket
+  lifecycle.
+- `realtime.ts`: authenticated Socket.IO joins, host controls, and committed
+  snapshot publishing.
+- `index.ts`: configuration, migration, worker, HTTP, and shutdown lifecycle.
+
+The engine remains deterministic and transport-independent in
+`packages/engine`; the server must not duplicate case proof rules.

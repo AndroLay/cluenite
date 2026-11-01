@@ -21,11 +21,13 @@ const emit = defineEmits<{
 
 const draft = ref("");
 const connected = computed(() => props.connection === "connected");
-const canSend = computed(() => connected.value && draft.value.trim().length > 0);
+const canSend = computed(
+  () => connected.value && draft.value.trim().length > 0,
+);
 const connectionLabel = computed(() => {
-  if (props.connection === "connected") return "Terhubung";
-  if (props.connection === "connecting") return "Menghubungkan";
-  return "Terputus";
+  if (props.connection === "connected") return "Connected";
+  if (props.connection === "connecting") return "Connecting";
+  return "Disconnected";
 });
 
 function submit(): void {
@@ -34,7 +36,11 @@ function submit(): void {
 }
 
 function restart(): void {
-  if (window.confirm("Mulai ulang ronde dari awal? Progres saat ini akan hilang.")) {
+  if (
+    window.confirm(
+      "Restart the round from the beginning? Current progress will be lost.",
+    )
+  ) {
     emit("control", "restart");
   }
 }
@@ -43,14 +49,16 @@ function restart(): void {
 <template>
   <section class="dash" aria-labelledby="dash-title">
     <header class="dash-head">
-      <h2 id="dash-title" class="dash-title">Panel host</h2>
-      <span class="dash-conn" :data-state="connection">{{ connectionLabel }}</span>
-      <span v-if="paused" class="dash-paused">Dijeda</span>
-      <span class="dash-session">Sesi {{ sessionId }}</span>
+      <h2 id="dash-title" class="dash-title">Host panel</h2>
+      <span class="dash-conn" :data-state="connection">{{
+        connectionLabel
+      }}</span>
+      <span v-if="paused" class="dash-paused">Paused</span>
+      <span class="dash-session">Session {{ sessionId }}</span>
     </header>
 
     <form class="dash-form" @submit.prevent="submit">
-      <label class="dash-label" for="dash-command">Perintah</label>
+      <label class="dash-label" for="dash-command">Command</label>
       <div class="dash-row">
         <input
           id="dash-command"
@@ -63,22 +71,28 @@ function restart(): void {
           :maxlength="MAX_COMMAND_LENGTH"
           :disabled="!connected"
         />
-        <button type="submit" class="dash-button" :disabled="!canSend">Kirim</button>
+        <button type="submit" class="dash-button" :disabled="!canSend">
+          Send
+        </button>
       </div>
       <p class="dash-hint">
-        Contoh: <code>!inspect CAM</code>, <code>!link CAM SCHEDULE</code>, <code>!solve ROBOT</code>.
-        {{ draft.length }}/{{ MAX_COMMAND_LENGTH }} karakter.
+        Examples: <code>!inspect CAM</code>,
+        <code>!link CAM_R07 SCHEDULE_R07</code>,
+        <code>!solve &lt;verdict-id&gt;</code>. {{ draft.length }}/{{
+          MAX_COMMAND_LENGTH
+        }}
+        characters.
       </p>
     </form>
 
-    <div class="dash-controls" role="group" aria-label="Kontrol ronde">
+    <div class="dash-controls" role="group" aria-label="Round controls">
       <button
         type="button"
         class="dash-button"
         :disabled="!connected || paused"
         @click="emit('control', 'pause')"
       >
-        Jeda
+        Pause
       </button>
       <button
         type="button"
@@ -86,14 +100,21 @@ function restart(): void {
         :disabled="!connected || !paused"
         @click="emit('control', 'resume')"
       >
-        Lanjutkan
+        Resume
       </button>
-      <button type="button" class="dash-button dash-danger" :disabled="!connected" @click="restart">
-        Mulai ulang
+      <button
+        type="button"
+        class="dash-button dash-danger"
+        :disabled="!connected"
+        @click="restart"
+      >
+        Restart
       </button>
     </div>
 
-    <p v-if="notice" class="dash-notice" :data-tone="notice.tone" role="status">{{ notice.text }}</p>
+    <p v-if="notice" class="dash-notice" :data-tone="notice.tone" role="status">
+      {{ notice.text }}
+    </p>
   </section>
 </template>
 
@@ -155,15 +176,15 @@ function restart(): void {
 }
 .dash-conn[data-state="connected"] {
   color: var(--case-confirm);
-  border-color: rgba(183, 198, 211, 0.45);
+  border-color: rgba(191, 177, 154, 0.45);
 }
 .dash-conn[data-state="connecting"] {
   color: var(--case-amber);
-  border-color: rgba(245, 190, 112, 0.45);
+  border-color: rgba(217, 182, 129, 0.45);
 }
 .dash-conn[data-state="disconnected"] {
   color: var(--case-alert);
-  border-color: rgba(240, 132, 126, 0.55);
+  border-color: rgba(217, 154, 136, 0.55);
 }
 
 .dash-paused {
@@ -286,13 +307,13 @@ function restart(): void {
 }
 
 .dash-danger {
-  border-color: rgba(240, 132, 126, 0.55);
+  border-color: rgba(217, 154, 136, 0.55);
   background: transparent;
   color: var(--case-alert);
 }
 .dash-danger:hover:not(:disabled) {
   border-color: var(--case-alert);
-  background: rgba(240, 132, 126, 0.08);
+  background: rgba(217, 154, 136, 0.08);
 }
 
 .dash-notice {
@@ -304,13 +325,13 @@ function restart(): void {
   line-height: 1.5;
 }
 .dash-notice[data-tone="ok"] {
-  border-color: rgba(117, 215, 189, 0.5);
-  background: rgba(117, 215, 189, 0.08);
+  border-color: rgba(199, 154, 98, 0.5);
+  background: rgba(199, 154, 98, 0.08);
   color: var(--case-confirm);
 }
 .dash-notice[data-tone="warn"] {
-  border-color: rgba(240, 132, 126, 0.55);
-  background: rgba(240, 132, 126, 0.08);
+  border-color: rgba(217, 154, 136, 0.55);
+  background: rgba(217, 154, 136, 0.08);
   color: var(--case-alert);
 }
 

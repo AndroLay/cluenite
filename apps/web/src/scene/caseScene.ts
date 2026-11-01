@@ -1,19 +1,25 @@
-import { Application, Container, FillGradient, Graphics, Sprite, Texture } from "pixi.js";
+import { Application, Assets, Container, FillGradient, Graphics, Rectangle, Sprite, Texture } from "pixi.js";
 import type { ClueStatus, QuickStage } from "../quickCase/viewModel";
+import galleryUrl from "../assets/quick-case/museum-gallery.jpg";
 
-// PixiJS renderer for the case room. The room is drawn in the same 600x200 design space the old
-// SVG used, then scaled to cover its host box (the SVG's xMidYMid slice). Every position below is
-// copied from that SVG, so the composition does not move. Text, clues, and controls stay in the DOM;
-// this file only paints the room and the detective's pose.
+// PixiJS renderer for the case room. The room is a painted still (museum-gallery.jpg) in a 600x250 design
+// space, scaled to cover its host box. The table, files, and figures are drawn over it and sit
+// FOREGROUND_DROP units lower. Text, clues, and controls stay in the DOM. This file paints the room
+// light, the detective's pose, and the case files, which also take a pointer tap to inspect the clue.
 
 export interface CaseScene {
   setStage(stage: QuickStage): void;
   setClues(statuses: readonly ClueStatus[]): void;
+  setInspectable(flags: readonly boolean[]): void;
+  // A short scale kick for a rejected command. Ignored under prefers-reduced-motion.
+  jolt(): void;
   destroy(): void;
 }
 
 const W = 600;
-const H = 200;
+const H = 250;
+// Table, files, pool of light, and figures move down by this much from the 200-unit layout.
+const FOREGROUND_DROP = 40;
 const DEG = Math.PI / 180;
 const TAU = Math.PI * 2;
 
@@ -79,46 +85,6 @@ class Tween {
   }
 }
 
-// Rain streak offsets inside one 30x60 tile, copied from the old pattern.
-const RAIN_STREAKS: ReadonlyArray<readonly [number, number]> = [
-  [5, 4],
-  [20, 18],
-  [12, 36],
-  [26, 44],
-];
-
-// Glass area of the window, in design units.
-const GLASS = { x0: 40, y0: 26, x1: 160, y1: 138 };
-
-// Liang-Barsky clip of one streak to the glass, so rain never spills past the window frame.
-function clipToGlass(x0: number, y0: number, x1: number, y1: number): [number, number, number, number] | null {
-  const dx = x1 - x0;
-  const dy = y1 - y0;
-  const edges: ReadonlyArray<readonly [number, number]> = [
-    [-dx, x0 - GLASS.x0],
-    [dx, GLASS.x1 - x0],
-    [-dy, y0 - GLASS.y0],
-    [dy, GLASS.y1 - y0],
-  ];
-  let t0 = 0;
-  let t1 = 1;
-  for (const [p, q] of edges) {
-    if (p === 0) {
-      if (q < 0) return null;
-      continue;
-    }
-    const r = q / p;
-    if (p < 0) {
-      if (r > t1) return null;
-      t0 = Math.max(t0, r);
-    } else {
-      if (r < t0) return null;
-      t1 = Math.min(t1, r);
-    }
-  }
-  return [x0 + t0 * dx, y0 + t0 * dy, x0 + t1 * dx, y0 + t1 * dy];
-}
-
 // A round light falloff drawn to a canvas. Used for the pool of light on the floor.
 function radialGlow(stops: Array<[number, string]>): Texture {
   const size = 128;
@@ -135,129 +101,55 @@ function radialGlow(stops: Array<[number, string]>): Texture {
 }
 
 interface RoomRefs {
-  rain: Graphics;
   coneWrap: Container;
   cone: Graphics;
-  minuteHand: Graphics;
-  hourHand: Graphics;
 }
 
-// Wall, floor, window, gallery, clock, and lamp. Draw order matches the old SVG.
-function buildRoom(root: Container): RoomRefs {
-  // Wall and floor
-  root.addChild(
-    new Graphics().rect(0, 0, W, 150).fill(
-      new FillGradient({
-        end: { x: 0, y: 1 },
-        colorStops: [
-          { offset: 0, color: "#1d3449" },
-          { offset: 1, color: "#132334" },
-        ],
-      }),
-    ),
-  );
-  root.addChild(new Graphics().rect(0, 146, W, 5).fill(0x223748));
-  root.addChild(new Graphics().rect(0, 151, W, H - 151).fill(0x0c1826));
+// The still is a 1344x756 painted gallery: a lit vitrine left of centre, gilt frames, parquet, and a
+// bench at the lower left. It is scaled to the design width, then shifted up by STILL_TOP so the
+// vitrine's base sits just behind the table and the top of its crown leaves the frame.
+const STILL_TOP = -65;
+// Where the vitrine's inner light falls in design units, and where the lamp cone starts.
+const VITRINE_X = 183;
+const VITRINE_LIGHT_Y = 4;
 
-  const floorLines = new Graphics();
-  for (const x of [-100, 60, 200, 400, 540, 700]) {
-    floorLines.moveTo(300, 151).lineTo(x, H);
-  }
-  floorLines.stroke({ width: 1, color: 0x1b3145 });
-  root.addChild(floorLines);
+// The painted room, then the light that sits on it. Draw order: still, floor pool, cone.
+function buildRoom(root: Container, gallery: Texture): RoomRefs {
+  const still = new Sprite(gallery);
+  still.width = W;
+  still.height = (gallery.height / gallery.width) * W;
+  still.position.set(0, STILL_TOP);
+  root.addChild(still);
 
-  // Light on the floor: a warm pool under the lamp, a cool spill from the window
+  // Light on the floor: a warm pool under the vitrine, on the parquet in front of the table
   const pool = new Sprite(
     radialGlow([
-      [0, "rgba(245, 190, 112, 0.22)"],
-      [1, "rgba(245, 190, 112, 0)"],
+      [0, "rgba(217, 182, 129, 0.22)"],
+      [1, "rgba(217, 182, 129, 0)"],
     ]),
   );
   pool.anchor.set(0.5);
-  pool.position.set(300, 182);
-  pool.width = 360;
-  pool.height = 48;
+  pool.position.set(VITRINE_X, 186 + FOREGROUND_DROP);
+  pool.width = 260;
+  pool.height = 44;
   root.addChild(pool);
 
-  root.addChild(
-    new Graphics()
-      .poly([40, 144, 160, 144, 232, H, -32, H])
-      .fill(
-        new FillGradient({
-          end: { x: 0, y: 1 },
-          colorStops: [
-            { offset: 0, color: "rgba(184, 170, 245, 0.14)" },
-            { offset: 1, color: "rgba(184, 170, 245, 0)" },
-          ],
-        }),
-      ),
-  );
-
-  // Window: dark glass, moon, rain, mullions, sill, and frame
-  root.addChild(new Graphics().rect(40, 26, 120, 112).fill(0x0a1622));
-  root.addChild(new Graphics().circle(136, 52, 8).fill({ color: 0xf4f0e6, alpha: 0.7 }));
-  const rain = new Graphics();
-  root.addChild(rain);
-  root.addChild(
-    new Graphics()
-      .moveTo(100, 26)
-      .lineTo(100, 138)
-      .moveTo(40, 82)
-      .lineTo(160, 82)
-      .stroke({ width: 3, color: 0x4e6a82 }),
-  );
-  root.addChild(new Graphics().rect(32, 138, 136, 6).fill(0x2c4256));
-  root.addChild(new Graphics().rect(40, 26, 120, 112).stroke({ width: 3, color: 0x4e6a82 }));
-
-  // Gallery frames. The second one hangs slightly crooked.
-  root.addChild(new Graphics().rect(430, 30, 62, 44).fill(0x0e1c2b));
-  root.addChild(new Graphics().rect(430, 30, 62, 44).stroke({ width: 2.5, color: 0xf5be70 }));
-  root.addChild(new Graphics().rect(438, 38, 46, 28).fill(0x223748));
-  root.addChild(
-    new Graphics().poly([440, 62, 456, 46, 470, 58, 482, 48, 482, 64]).fill({ color: 0x75d7bd, alpha: 0.45 }),
-  );
-
-  const crooked = new Container();
-  crooked.position.set(526, 66);
-  crooked.rotation = -4 * DEG;
-  crooked.addChild(new Graphics().rect(-18, -16, 38, 30).fill(0x0e1c2b));
-  crooked.addChild(new Graphics().rect(-18, -16, 38, 30).stroke({ width: 2, color: 0xf5be70 }));
-  crooked.addChild(new Graphics().rect(-12, -10, 26, 18).fill({ color: 0xb8aaf5, alpha: 0.35 }));
-  root.addChild(crooked);
-
-  // Wall clock: the hands turn slowly, and reveal stops them
-  const clock = new Container();
-  clock.position.set(372, 62);
-  clock.addChild(new Graphics().circle(0, 0, 14).fill(0x0e1c2b));
-  clock.addChild(new Graphics().circle(0, 0, 14).stroke({ width: 2, color: 0xf5be70 }));
-  const hourHand = new Graphics().moveTo(0, 0).lineTo(0, -8).stroke({ width: 2, color: 0xf4f0e6, cap: "round" });
-  const minuteHand = new Graphics()
-    .moveTo(0, 0)
-    .lineTo(8, -6)
-    .stroke({ width: 1.4, color: 0xf4f0e6, cap: "round" });
-  clock.addChild(hourHand);
-  clock.addChild(minuteHand);
-  clock.addChild(new Graphics().circle(0, 0, 1.6).fill(0xf5be70));
-  root.addChild(clock);
-
-  // Lamp and its light cone. The cone is a triangle, so its gradient fills the shape's bounds.
+  // Light cone from the vitrine's inner lamp down onto the table. It is a triangle, so its gradient
+  // fills the shape's bounds. The fixture is in the still, so no lamp is drawn here.
   const coneWrap = new Container();
-  const cone = new Graphics().poly([300, 52, 160, H, 440, H]).fill(
+  const cone = new Graphics().poly([VITRINE_X, VITRINE_LIGHT_Y, VITRINE_X - 92, H, VITRINE_X + 92, H]).fill(
     new FillGradient({
       end: { x: 0, y: 1 },
       colorStops: [
-        { offset: 0, color: "rgba(245, 190, 112, 0.4)" },
-        { offset: 1, color: "rgba(245, 190, 112, 0)" },
+        { offset: 0, color: "rgba(217, 182, 129, 0.4)" },
+        { offset: 1, color: "rgba(217, 182, 129, 0)" },
       ],
     }),
   );
   coneWrap.addChild(cone);
   root.addChild(coneWrap);
-  root.addChild(new Graphics().moveTo(300, 0).lineTo(300, 28).stroke({ width: 2, color: 0x4e6a82 }));
-  root.addChild(new Graphics().poly([282, 30, 318, 30, 330, 48, 270, 48]).fill(0x2c4256));
-  root.addChild(new Graphics().circle(300, 50, 5).fill(0xf5be70));
 
-  return { rain, coneWrap, cone, minuteHand, hourHand };
+  return { coneWrap, cone };
 }
 
 interface Mote {
@@ -278,13 +170,13 @@ interface Characters {
   thread: Graphics;
 }
 
-const PARTNER_FILL = 0x0f2033;
-const SILHOUETTE = 0x0a1420;
-const OUTLINE = 0x2c4256;
-const PAPER = 0xf4f0e6;
-const AMBER = 0xf5be70;
-const TEAL = 0x75d7bd;
-const LILAC = 0xb8aaf5;
+const PARTNER_FILL = 0x1a120c;
+const SILHOUETTE = 0x0b0907;
+const OUTLINE = 0x65432d;
+const PAPER = 0xe9decb;
+const AMBER = 0xd9b681;
+const TEAL = 0xc79a62;
+const LILAC = 0xbfb19a;
 
 // Dust motes: position, radius, one leg of the drift in seconds, and how far into it each one starts.
 const MOTES = [
@@ -300,8 +192,8 @@ const CHIPS = [
   { x: 141, y: 155, rot: 4, w: 34 },
   { x: 179, y: 161, rot: -2, w: 30 },
 ];
-const CHIP_DIM = 0x1d3145; // a locked file: a dark slip, readable only as a shape
-const SLIP_INK = 0x14202e;
+const CHIP_DIM = 0x2c2018; // a locked file: a dark slip, readable only as a shape
+const SLIP_INK = 0x211811;
 const CHIP_SECONDS = 0.35;
 
 // The partner's outline, traced once for the fill and once for the stroke.
@@ -315,12 +207,13 @@ function partnerBodyPath(): Graphics {
     .lineTo(-16, 0);
 }
 
-// One case file. Locked shows only the dark slip; unlocked fades the paper in; linked adds a teal strip
+// One case file. Locked shows only the dark slip; unlocked fades the paper in; linked adds a brass strip
 // and lifts the file a few pixels. Each layer is a container so its alpha can be tweened.
 interface ChipRef {
   x: number;
   y: number;
   root: Container;
+  ring: Graphics;
   paper: Container;
   strip: Container;
   paperT: Tween;
@@ -354,11 +247,19 @@ function buildChips(root: Container): ChipRef[] {
     strip.addChild(new Graphics().rect(-half, -7, chip.w, 2).fill({ color: TEAL }));
     c.addChild(strip);
 
+    // Hover ring and tap target. The hit area lives in the file's own space, so it turns with the file.
+    const ring = new Graphics().rect(-half - 3, -10, chip.w + 6, 20).stroke({ width: 1.5, color: AMBER });
+    ring.visible = false;
+    c.addChild(ring);
+    c.hitArea = new Rectangle(-half - 4, -11, chip.w + 8, 22);
+    c.eventMode = "none";
+
     root.addChild(c);
     return {
       x: chip.x,
       y: chip.y,
       root: c,
+      ring,
       paper,
       strip,
       paperT: new Tween(0),
@@ -368,23 +269,47 @@ function buildChips(root: Container): ChipRef[] {
   });
 }
 
-// A teal thread through the linked files, arcing above them. Redrawn whenever the linked set changes.
-function drawThread(g: Graphics, linked: ChipRef[]): void {
+const ARC_STEPS = 14;
+
+// A brass thread through the linked files, arcing above them. `progress` (0 to 1) draws it out along the
+// arcs, so a new link pulls the thread across and an unlink pulls it back. A bright tip shows mid-draw.
+function drawThread(g: Graphics, linked: ChipRef[], progress: number): void {
   g.clear();
-  const [first, ...rest] = linked;
-  if (!first) return;
-  g.moveTo(first.x, first.y - 8);
-  let prev = first;
-  for (const chip of rest) {
-    g.quadraticCurveTo((prev.x + chip.x) / 2, Math.min(prev.y, chip.y) - 22, chip.x, chip.y - 8);
-    prev = chip;
+  const first = linked[0];
+  if (linked.length < 2 || !first || progress <= 0) return;
+  const pts: Array<[number, number]> = [[first.x, first.y - 8]];
+  for (let i = 1; i < linked.length; i++) {
+    const prev = linked[i - 1];
+    const chip = linked[i];
+    if (!prev || !chip) continue;
+    const x0 = prev.x;
+    const y0 = prev.y - 8;
+    const cx = (prev.x + chip.x) / 2;
+    const cy = Math.min(prev.y, chip.y) - 22;
+    const x2 = chip.x;
+    const y2 = chip.y - 8;
+    for (let s = 1; s <= ARC_STEPS; s++) {
+      const t = s / ARC_STEPS;
+      const u = 1 - t;
+      pts.push([u * u * x0 + 2 * u * t * cx + t * t * x2, u * u * y0 + 2 * u * t * cy + t * t * y2]);
+    }
   }
-  g.stroke({ width: 1.5, color: TEAL, cap: "round" });
+  const last = Math.round(clamp01(progress) * (pts.length - 1));
+  const tip = pts[last];
+  if (last < 1 || !tip) return;
+  g.moveTo(first.x, first.y - 8);
+  for (let i = 1; i <= last; i++) {
+    const p = pts[i];
+    if (p) g.lineTo(p[0], p[1]);
+  }
+  g.stroke({ width: 1.5, color: TEAL, cap: "round", join: "round" });
+  if (progress < 1) g.circle(tip[0], tip[1], 1.6).fill({ color: AMBER });
 }
 
 // The partner sits across the table; the detective leans in from the right with a magnifier.
 // Body and neck are placed at their breathing origins, so their children use local coordinates.
-function buildCharacters(root: Container): Characters {
+// `root` is the foreground layer; motes and the lightning wash go to `world` so they stay in the room.
+function buildCharacters(root: Container, world: Container): Characters {
   const partnerBody = new Container();
   partnerBody.position.set(262, 180);
   partnerBody.addChild(partnerBodyPath().fill(PARTNER_FILL));
@@ -403,21 +328,21 @@ function buildCharacters(root: Container): Characters {
   const chips = buildChips(root);
   // The thread sits over the files it joins, so it is added after them.
   const thread = new Graphics();
-  thread.alpha = 0;
   root.addChild(thread);
 
   const detectiveBody = new Container();
   detectiveBody.position.set(477, 200);
-  detectiveBody.addChild(
+  // A thin warm rim keeps the dark silhouette readable against the dark wall.
+  const detectiveBodyPath = () =>
     new Graphics()
       .moveTo(-29, 0)
       .lineTo(-25, -54)
       .quadraticCurveTo(-19, -76, -1, -78)
       .quadraticCurveTo(17, -76, 23, -54)
       .lineTo(29, 0)
-      .lineTo(-29, 0)
-      .fill(SILHOUETTE),
-  );
+      .lineTo(-29, 0);
+  detectiveBody.addChild(detectiveBodyPath().fill(SILHOUETTE));
+  detectiveBody.addChild(detectiveBodyPath().stroke({ width: 1.2, color: AMBER, alpha: 0.5 }));
   detectiveBody.addChild(new Graphics().rect(-6, -88, 12, 14).fill(SILHOUETTE));
   root.addChild(detectiveBody);
 
@@ -425,6 +350,7 @@ function buildCharacters(root: Container): Characters {
   const detectiveHead = new Container();
   detectiveHead.position.set(477, 110);
   detectiveHead.addChild(new Graphics().circle(0, -4, 13).fill(SILHOUETTE));
+  detectiveHead.addChild(new Graphics().circle(0, -4, 13).stroke({ width: 1.2, color: AMBER, alpha: 0.5 }));
   detectiveHead.addChild(new Graphics().poly([-21, -12, 21, -12, 17, -8, -17, -8]).fill(SILHOUETTE));
   detectiveHead.addChild(
     new Graphics().moveTo(-11, -12).quadraticCurveTo(0, -30, 11, -12).lineTo(-11, -12).fill(SILHOUETTE),
@@ -441,14 +367,14 @@ function buildCharacters(root: Container): Characters {
 
   const motes: Mote[] = MOTES.map((m) => {
     const g = new Graphics().circle(m.x, m.y, m.r).fill(PAPER);
-    root.addChild(g);
+    world.addChild(g);
     return { g, period: m.period, delay: m.delay };
   });
 
-  // Lightning: a full-room lilac wash whose alpha the update loop drives during reveal.
+  // Lightning: a full-room pale wash whose alpha the update loop drives during reveal.
   const flash = new Graphics().rect(0, 0, W, H).fill(LILAC);
   flash.alpha = 0;
-  root.addChild(flash);
+  world.addChild(flash);
 
   return { partnerBody, partnerHead, detectiveBody, detectiveHead, arm, motes, flash, chips, thread };
 }
@@ -496,32 +422,46 @@ function breathe(t: number, period: number): number {
   return 1 + 0.012 * (0.5 - 0.5 * Math.cos((TAU * t) / period));
 }
 
+function within(v: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, v));
+}
+
+// Higher rank = further along. A file that rises in rank is the one the camera pushes toward.
+const CLUE_RANK: Record<ClueStatus, number> = { locked: 0, unlocked: 1, linked: 2 };
+const PUSH_ZOOM = 0.3;
+const PUSH_RISE = 0.9; // seconds for the camera to reach the new file
+const PUSH_HOLD = 3; // scene seconds when the camera starts to ease back
+const PUSH_RETURN = 4.2; // scene seconds when the camera is back at full room
+const KICK_SECONDS = 0.5;
+
+// Camera push after evidence opens or links: rise, hold on the file, then ease back to the full room.
+function pushAmount(since: number): number {
+  if (since < 0 || since >= PUSH_RETURN) return 0;
+  if (since < PUSH_RISE) return smooth(clamp01(since / PUSH_RISE));
+  if (since < PUSH_HOLD) return 1;
+  return 1 - smooth(clamp01((since - PUSH_HOLD) / (PUSH_RETURN - PUSH_HOLD)));
+}
+
+// A short scale kick after a rejected command: full strength at the start, decaying to nothing.
+function kickAmount(since: number): number {
+  if (since < 0 || since >= KICK_SECONDS) return 0;
+  const k = 1 - since / KICK_SECONDS;
+  return k * k;
+}
+
 // Dust drift: ping-pongs between the start and the end point, one leg per `period` seconds.
 function moteDrift(elapsed: number, period: number): number {
   const cycle = (((elapsed / period) % 2) + 2) % 2; // negative delays start partway through a leg
   return smooth(cycle <= 1 ? cycle : 2 - cycle);
 }
 
-// Rain: the old pattern's four streaks per 30x60 tile, redrawn at vertical offset `dy` and clipped
-// to the glass. The old SVG never showed them because its pattern had no stroke, so they are drawn here.
-function drawRain(g: Graphics, dy: number): void {
-  g.clear();
-  for (let tx = 1; tx <= 5; tx += 1) {
-    for (let ty = -2; ty <= 3; ty += 1) {
-      for (const [sx, sy] of RAIN_STREAKS) {
-        const x = tx * 30 + sx;
-        const y = ty * 60 + sy + dy;
-        const seg = clipToGlass(x, y, x - 3, y + 8);
-        if (seg) g.moveTo(seg[0], seg[1]).lineTo(seg[2], seg[3]);
-      }
-    }
-  }
-  g.stroke({ width: 1, color: 0xb7c6d3, alpha: 0.3 });
-}
-
 // Mounts the room into `host` and returns a handle. Motion runs on the Pixi ticker; with
 // prefers-reduced-motion the ticker stays stopped and the scene is painted once per change.
-export async function createCaseScene(host: HTMLElement, initial: QuickStage): Promise<CaseScene> {
+export async function createCaseScene(
+  host: HTMLElement,
+  initial: QuickStage,
+  onPick?: (index: number) => void,
+): Promise<CaseScene> {
   const app = new Application();
   await app.init({
     backgroundAlpha: 0,
@@ -532,13 +472,33 @@ export async function createCaseScene(host: HTMLElement, initial: QuickStage): P
   const canvas = app.canvas;
   host.appendChild(canvas);
 
-  // The design space is 600x200. `world` is scaled to cover the host box, as the SVG's slice did.
+  // The design space is 600x250. `world` is scaled to cover the host box. The table, files, pool, and
+  // figures sit in `foreground`, shifted down, so the room behind them keeps its height.
   const world = new Container();
   app.stage.addChild(world);
-  const room = buildRoom(world);
-  const people = buildCharacters(world);
+  const gallery = await Assets.load<Texture>(galleryUrl);
+  // `camera` holds the room and the table, so it can push in and kick. Motes and the lightning wash stay on
+  // `world`, above it, so they keep their place in the frame.
+  const camera = new Container();
+  world.addChild(camera);
+  const room = buildRoom(camera, gallery);
+  const foreground = new Container();
+  foreground.position.set(0, FOREGROUND_DROP);
+  camera.addChild(foreground);
+  const people = buildCharacters(foreground, world);
   const chips = people.chips;
   const threadT = new Tween(0);
+  let threadChips: ChipRef[] = []; // the last linked set of two or more; kept so an unlink can retract it
+  let threadDirty = true;
+  let threadDrawn = -1;
+
+  // Camera state. The push is driven by clue status changes from the server (see setClues), never by local
+  // previews. `pushFocus` is in design space, below the foreground drop. Reduced motion never sets these.
+  let pushAt: number | null = null;
+  let pushFocus = { x: W / 2, y: H / 2 };
+  let kickAt: number | null = null;
+  let known: readonly ClueStatus[] = []; // statuses at the last sync, to see which files just opened
+  const hovered = chips.map(() => false);
 
   const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
   let reduced = motionQuery.matches;
@@ -546,7 +506,6 @@ export async function createCaseScene(host: HTMLElement, initial: QuickStage): P
   let stage: QuickStage = initial;
   let revealAt: number | null = null; // scene time when reveal began; drives the lightning
   let elapsed = 0; // seconds of scene time, advanced by the ticker
-  let clock = 0; // wall-clock seconds for the hands; frozen during reveal
 
   const first = POSES[initial];
   const armT = new Tween(first.arm);
@@ -564,12 +523,24 @@ export async function createCaseScene(host: HTMLElement, initial: QuickStage): P
   };
 
   // Paints one frame from the current state. Under reduced motion the time is pinned to 0, so the
-  // breathing, flicker, drift, rain, and flash all rest at their starting values.
+  // breathing, flicker, drift, and flash all rest at their starting values.
   const paint = (): void => {
     armT.update(elapsed);
     headT.update(elapsed);
     partnerT.update(elapsed);
     lampT.update(elapsed);
+
+    // Camera: the push eases toward the newest file, the kick scales the room briefly. The pivot is clamped so
+    // the visible window never leaves the design rectangle, which keeps the edges of the room covered.
+    const push = pushAt === null ? 0 : pushAmount(elapsed - pushAt);
+    const kick = kickAt === null ? 0 : kickAmount(elapsed - kickAt);
+    const zoom = 1 + PUSH_ZOOM * push + 0.04 * kick;
+    camera.scale.set(zoom);
+    camera.pivot.set(
+      within(lerp(W / 2, pushFocus.x, push), W / (2 * zoom), W - W / (2 * zoom)),
+      within(lerp(H / 2, pushFocus.y, push), H / (2 * zoom), H - H / (2 * zoom)),
+    );
+    camera.position.set(W / 2, H / 2);
 
     people.arm.rotation = armT.value * DEG;
     people.detectiveHead.rotation = headT.value * DEG;
@@ -577,11 +548,7 @@ export async function createCaseScene(host: HTMLElement, initial: QuickStage): P
     room.coneWrap.alpha = lampT.value;
     room.cone.alpha = reduced ? 1 : flickerAlpha(elapsed);
 
-    room.minuteHand.rotation = (clock / 60) * TAU;
-    room.hourHand.rotation = (clock / 720) * TAU;
-
     const t = reduced ? 0 : elapsed;
-    drawRain(room.rain, ((t % 1.1) / 1.1) * 60);
     people.detectiveBody.scale.y = breathe(t, 5);
     people.partnerBody.scale.y = breathe(t, 6);
     for (const m of people.motes) {
@@ -599,15 +566,49 @@ export async function createCaseScene(host: HTMLElement, initial: QuickStage): P
       chip.strip.alpha = chip.stripT.value;
       chip.root.position.y = chip.y + chip.liftT.value;
     }
+    // Hotspots: an inspectable file pulses its amber ring slowly; hover holds it at full strength.
+    const pulse = 0.5 + 0.5 * Math.sin((TAU * (reduced ? 0 : elapsed)) / 2.4);
+    chips.forEach((chip, i) => {
+      const on = pickable[i] === true;
+      chip.ring.visible = on;
+      chip.ring.alpha = hovered[i] === true ? 1 : on ? 0.4 + 0.35 * pulse : 0;
+    });
+
     threadT.update(elapsed);
-    people.thread.alpha = threadT.value;
+    if (threadDirty || Math.abs(threadT.value - threadDrawn) > 0.002) {
+      drawThread(people.thread, threadChips, threadT.value);
+      threadDrawn = threadT.value;
+      threadDirty = false;
+    }
   };
 
   app.ticker.add(() => {
     const dt = app.ticker.deltaMS / 1000;
     elapsed += dt;
-    if (stage !== "reveal") clock += dt;
     paint();
+  });
+
+  // Case files take a tap when the clue behind them can be inspected. Hover shows the amber ring. A tap
+  // calls the same handler as the clue's inspect button, so the scene adds no second path to the game.
+  const pickable = chips.map(() => false);
+  chips.forEach((chip, i) => {
+    chip.root.on("pointerover", () => {
+      hovered[i] = true;
+      if (reduced) {
+        paint();
+        app.render();
+      }
+    });
+    chip.root.on("pointerout", () => {
+      hovered[i] = false;
+      if (reduced) {
+        paint();
+        app.render();
+      }
+    });
+    chip.root.on("pointertap", () => {
+      if (pickable[i] === true) onPick?.(i);
+    });
   });
 
   const fit = (): void => {
@@ -627,6 +628,8 @@ export async function createCaseScene(host: HTMLElement, initial: QuickStage): P
     reduced = motionQuery.matches;
     if (reduced) {
       app.ticker.stop();
+      pushAt = null;
+      kickAt = null;
       aim(stage, true);
       paint();
       app.render();
@@ -654,19 +657,49 @@ export async function createCaseScene(host: HTMLElement, initial: QuickStage): P
     setClues(statuses: readonly ClueStatus[]): void {
       const seconds = reduced ? 0 : CHIP_SECONDS;
       const linked: ChipRef[] = [];
+      const opened: ChipRef[] = [];
       chips.forEach((chip, i) => {
         const status = statuses[i] ?? "locked";
+        // The first non-empty sync is the state on load, so it does not push the camera.
+        if (known.length > 0 && CLUE_RANK[status] > CLUE_RANK[known[i] ?? "locked"]) opened.push(chip);
         chip.paperT.go(status === "locked" ? 0 : 1, elapsed, seconds);
         chip.stripT.go(status === "linked" ? 1 : 0, elapsed, seconds);
         chip.liftT.go(status === "locked" ? 0 : -3, elapsed, seconds);
         if (status === "linked") linked.push(chip);
       });
-      drawThread(people.thread, linked);
-      threadT.go(linked.length >= 2 ? 0.9 : 0, elapsed, seconds);
+      known = [...statuses];
+      if (opened.length > 0 && !reduced) {
+        const n = opened.length;
+        pushFocus = {
+          x: opened.reduce((sum, c) => sum + c.x, 0) / n,
+          y: opened.reduce((sum, c) => sum + c.y, 0) / n + FOREGROUND_DROP,
+        };
+        pushAt = elapsed;
+      }
+      if (linked.length >= 2) threadChips = linked;
+      threadDirty = true;
+      threadT.go(linked.length >= 2 ? 1 : 0, elapsed, seconds);
       if (reduced) {
         paint();
         app.render();
       }
+    },
+    setInspectable(flags: readonly boolean[]): void {
+      chips.forEach((chip, i) => {
+        const on = flags[i] === true;
+        pickable[i] = on;
+        chip.root.eventMode = on ? "static" : "none";
+        chip.root.cursor = on ? "pointer" : "default";
+        if (!on) hovered[i] = false;
+      });
+      if (reduced) {
+        paint();
+        app.render();
+      }
+    },
+    jolt(): void {
+      if (reduced) return;
+      kickAt = elapsed;
     },
     destroy(): void {
       ro.disconnect();

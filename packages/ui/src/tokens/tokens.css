@@ -1,7 +1,8 @@
 /*
- * Cluenite design tokens (CSS custom properties).
+ * Legacy Cluenite v1 design tokens (CSS custom properties).
  * Values mirror design_tokens.json (v1.0 art direction) in this folder.
  * Keep them in sync manually when the JSON changes.
+ * Active web colors use --case-* in apps/web/src/style.css.
  */
 :root {
   --ink-900: #101c2a;

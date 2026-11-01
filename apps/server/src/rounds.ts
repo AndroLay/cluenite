@@ -1,4 +1,8 @@
-import type { CommandResult, RoundSnapshot, SessionControl } from "@cluenite/contracts";
+import type {
+  CommandResult,
+  RoundSnapshot,
+  SessionControl,
+} from "@cluenite/contracts";
 import {
   applyCommand,
   createRound,
@@ -26,12 +30,22 @@ export interface RoundStore {
 
 function unknownSession(): Outcome {
   return {
-    result: { code: "NOT_AVAILABLE", reason: null, message: "Unknown session.", missing: [], revision: 0 },
+    result: {
+      code: "NOT_AVAILABLE",
+      reason: null,
+      message: "Unknown session.",
+      missing: [],
+      revision: 0,
+    },
     changed: false,
   };
 }
 
-function toResult(next: RoundState, previousRevision: number, result: CommandResult): Outcome {
+function toResult(
+  next: RoundState,
+  previousRevision: number,
+  result: CommandResult,
+): Outcome {
   return { result, changed: next.revision !== previousRevision };
 }
 
@@ -40,7 +54,10 @@ export function createRoundStore(now: () => number = Date.now): RoundStore {
   const rounds = new Map<string, RoundState>([
     [
       DEFAULT_SESSION_ID,
-      createRound(Q01_GALLERY_SHADOW, { sessionId: DEFAULT_SESSION_ID, source: "simulation" }),
+      createRound(Q01_GALLERY_SHADOW, {
+        sessionId: DEFAULT_SESSION_ID,
+        source: "simulation",
+      }),
     ],
   ]);
 
@@ -104,12 +121,27 @@ export function createRoundStore(now: () => number = Date.now): RoundStore {
 
 // Fixed-window limiter keyed by socket. Date.now is read here, in the server layer,
 // because the engine itself must stay free of wall-clock time.
-export function createRateLimiter(max: number, windowMs: number, now: () => number = Date.now) {
+export function createRateLimiter(
+  max: number,
+  windowMs: number,
+  now: () => number = Date.now,
+  capacity = 5_000,
+) {
   const hits = new Map<string, number[]>();
   return {
     take(key: string): boolean {
       const at = now();
-      const recent = (hits.get(key) ?? []).filter((time) => at - time < windowMs);
+      if (!hits.has(key) && hits.size >= capacity) {
+        for (const [staleKey, timestamps] of hits) {
+          if (timestamps.every((time) => at - time >= windowMs))
+            hits.delete(staleKey);
+        }
+        if (hits.size >= capacity)
+          hits.delete(hits.keys().next().value as string);
+      }
+      const recent = (hits.get(key) ?? []).filter(
+        (time) => at - time < windowMs,
+      );
       const allowed = recent.length < max;
       if (allowed) recent.push(at);
       hits.set(key, recent);
