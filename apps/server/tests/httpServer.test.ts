@@ -96,7 +96,18 @@ describeWithDatabase("built application HTTP runtime", () => {
       ) {
         const exited = once(serverProcess, "exit");
         serverProcess.kill("SIGTERM");
-        await exited;
+        const graceful = await Promise.race([
+          exited.then(() => true),
+          delay(5000, false),
+        ]);
+        if (!graceful) {
+          // Stop only this owned fixture before dropping its temporary schema; fail the gate.
+          serverProcess.kill("SIGKILL");
+          await exited;
+          throw new Error(
+            "The owned HTTP fixture did not exit after SIGTERM within five seconds.",
+          );
+        }
         await expect(
           fetch(`${origin}/health/live`, {
             headers: { Connection: "close" },

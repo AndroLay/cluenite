@@ -32,6 +32,7 @@ import { registerAuthRoutes } from "./auth/routes.js";
 import { TwitchApi } from "./twitch/twitchApi.js";
 import { TwitchConnectionManager } from "./twitch/connectionManager.js";
 import { EventSubLeader } from "./ops/eventSubLeader.js";
+import { registerShutdown } from "./ops/shutdown.js";
 
 // The root .env is found from this file, not from the working directory. `npm --prefix apps/server`
 // runs with apps/server as cwd, so a bare `dotenv/config` import would miss DATABASE_URL.
@@ -254,13 +255,14 @@ if (existsSync(resolve(webRoot, "index.html"))) {
   });
 }
 
-app.addHook("onClose", async () => {
-  await outboxPublisher.close();
-  await eventsubLeader?.close();
-  await twitchConnections?.shutdown();
-  realtime.close();
-  sockets.close();
-  await database.end();
+registerShutdown(app, sockets, {
+  stopBackground: async () => {
+    await eventsubLeader?.close();
+    await twitchConnections?.shutdown();
+    realtime.close();
+    await outboxPublisher.close();
+  },
+  closeDatabase: () => database.end(),
 });
 
 await app.listen({ host: "0.0.0.0", port: config.port });

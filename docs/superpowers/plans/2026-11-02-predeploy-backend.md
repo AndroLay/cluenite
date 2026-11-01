@@ -52,6 +52,8 @@ Files: `apps/server/src/index.ts`, focused HTTP guard/logger helpers, config/HTT
 
 ## Task 5: Predeploy handoff and final evidence
 
+CI follow-up: the first Linux run passed all assertions but exposed an HTTP shutdown timeout. Reproduced the active-WebSocket deadlock locally, moved shutdown before HTTP drain, bounded owned TCP cleanup, and added a narrow independent review. This extends the existing reliability gate without changing the deployment/frontend boundary.
+
 Files: backend-owned operations/config helpers as needed, server package scripts, `apps/server/README.md`, `BACKEND_CONTRACTS.md`, `BACKEND_PROGRESS.md`, and a dated predeploy report.
 
 - [x] Provide a non-mutating production configuration check that reports missing/invalid variable names without printing values, opening a network connection, or running migrations.
