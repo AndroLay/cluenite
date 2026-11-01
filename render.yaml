@@ -6,7 +6,7 @@ services:
     region: singapore
     numInstances: 1
     buildCommand: npx --yes pnpm@12.16.1 install --frozen-lockfile && npx --yes pnpm@12.16.1 build
-    startCommand: node apps/server/dist/index.js
+    startCommand: npm --prefix apps/server run start
     healthCheckPath: /health/ready
     autoDeployTrigger: off
     envVars:
