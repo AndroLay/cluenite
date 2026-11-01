@@ -24,4 +24,19 @@ Current decisions are in [architecture decisions](../architecture/DECISIONS.md),
 | Completed feature lists       | Requirements and acceptance targets remain targets until source and matching verification support them.                                                       |
 | Render and submission         | Infrastructure definitions and example URLs are not evidence of live services or a submitted project.                                                         |
 
+## Screen inventory and browser routes
+
+The controlling [v3 UI inventory](Cluenite_Implementation_Ready_v3/02_DESIGN_CONTENT/04_UI_ART_MOTION_AUDIO.md) contains 18 entries, S00-S17: 13 P0, four P1, and one P2. The same rows appear in the master specification. These entries describe UI surfaces and states, including reveal/collapse and interruption states. They do not require 18 separate pages or URLs. The layout specification allows the stage and evidence/timeline drawer to share a presentation. Apply the stated MVP qualifiers (`lean`, `basic`, `short`, `one`) when assessing P0 coverage.
+
+The older v1 inventory has 16 numbered entries. It already includes Twitch Connect, combined A/B co-op stations, a shared board, and interruption states. v3 reorganizes those concepts; assigning new IDs does not make all of them newly introduced features. Recap and host controls remain requirements even when they are not standalone v3 screen rows.
+
+| v3 architecture route | Current browser entry                                                                                                                |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `/dashboard`          | `/dashboard` account overview; active host controls use `/?session=<id>&view=dashboard`.                                             |
+| `/stage/:id`          | Live presentation uses `/?session=<id>` and the server's case mode. `/stage/:id` is not an implemented alias.                        |
+| `/overlay/:token`     | `/?mode=obs&session=<id>#overlay=<token>`; the scoped credential is in the fragment. The reference path is not an implemented alias. |
+| `/coop/:id/*`         | `/coop` is guidance. Dedicated invitation, workstation, and shared-breakthrough browser flows remain unfinished.                     |
+
+Public `/`, `/play`, `/guide`, `/settings`, and `/setup` routes supplement these entries. The architecture's route sketch is not a one-to-one inventory of S00-S17. Preserve existing links and scoped overlay authorization; any route migration requires separate implementation and compatibility checks. Current verification belongs in [status](../STATUS.md), not in a count inferred from route names or component boundaries.
+
 Do not edit frozen files to make historical examples look implemented. Update this index and the relevant current guide, preserving provenance and checksums. Copied JSON fixtures under `packages/cases/fixtures/reference-v1.0` are also reference inputs; production uses authored TypeScript cases and sanitized snapshots.

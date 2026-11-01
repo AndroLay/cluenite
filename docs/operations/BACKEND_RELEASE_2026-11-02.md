@@ -6,17 +6,19 @@
 
 The user authorized backend completion through deployment, a new private GitHub repository, Andro's Render workspace, and creation of a Twitch developer application using their Zen browser. Operational owner: **AndroLay**.
 
-| Surface            | Intended target                                                           | Observed state                                                                                                                                  |
-| ------------------ | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Source             | Private [AndroLay/cluenite](https://github.com/AndroLay/cluenite), `main` | Repository created. First source push and Linux CI evidence are pending in this preparation record.                                             |
-| Render workspace   | Andro's workspace, `tea-d3akn7ruibrs73ccv4ig`                             | Confirmed by the user; no Cluenite service or PostgreSQL instance existed at the release inventory check. Unrelated services are outside scope. |
-| Web service        | `cluenite-app`, Singapore, `0.5c-512mb`, one instance                     | Defined in `render.yaml`; no service ID, deploy ID, or public URL has been assigned.                                                            |
-| Database           | `cluenite-db`, PostgreSQL 18, Singapore, `0.1c-256mb`, 1 GB               | Defined with `ipAllowList: []`; no production database or applied remote migrations are claimed.                                                |
-| Twitch application | Cluenite, exact assigned production callback                              | Client ID and secret are absent. The Zen/browser control host is unavailable.                                                                   |
+| Surface            | Intended target                                                           | Observed state                                                                                                                                            |
+| ------------------ | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Source             | Private [AndroLay/cluenite](https://github.com/AndroLay/cluenite), `main` | Release source published at `4696a3951c6f477086f4cca4f60580147700c889`. [Linux CI passed](https://github.com/AndroLay/cluenite/actions/runs/41345208201). |
+| Render workspace   | Andro's workspace, `tea-d3akn7ruibrs73ccv4ig`                             | Confirmed by the user; no Cluenite service or PostgreSQL instance existed at the release inventory check. Unrelated services are outside scope.           |
+| Web service        | `cluenite-app`, Singapore, `0.5c-512mb`, one instance                     | Defined in `render.yaml`; no service ID, deploy ID, or public URL has been assigned.                                                                      |
+| Database           | `cluenite-db`, PostgreSQL 18, Singapore, `0.1c-256mb`, 1 GB               | Defined with `ipAllowList: []`; no production database or applied remote migrations are claimed.                                                          |
+| Twitch application | Cluenite, exact assigned production callback                              | Client ID and secret are absent. The Zen/browser control host is unavailable.                                                                             |
 
 `https://cluenite-app.onrender.com` in the Blueprint is the requested origin, not an assigned or verified address. Replace it if Render assigns another hostname, then register that exact origin's `/api/auth/twitch/callback` with Twitch.
 
 ## Implemented release changes
+
+The publication follow-up also reconciles the 18-entry v3 UI inventory and route mapping, preserves earlier frontend evidence, and translates the remaining preview reset label to English. It does not implement new UI flows.
 
 - Production configuration rejects HTTP origins and callbacks at another origin or path. Local split-origin Vite/API development remains supported.
 - The SPA fallback serves public deep links while `/api`, `/api/*`, `/health/*`, and `/assets/*` preserve JSON 404 behavior for missing routes. The integrator reviewed the frontend's cross-owner fallback change and added the `/api` regression.
@@ -49,13 +51,14 @@ The browser check does not verify signed-in workflows, inline guide link target 
 
 ## Remaining release gates
 
-1. Publish the reviewed source to the private repository and verify the exact commit's Linux GitHub CI result.
-2. The owner must save `RENDER_API_KEY` in the ignored `.env` to enable supported API configuration. At the last presence-only check it was absent. The user said they would save it; that is not evidence that it is already saved. Never paste it into chat or commit it.
-3. Restore the Zen browser control connection to the signed-in [Twitch developer console](https://dev.twitch.tv/console/apps), or have the owner create the app and save its ID/secret in `.env`. Browser inventory reports an unavailable host; no developer application has been created by this release pass.
-4. Provision only the confirmed Cluenite resources. Configure private DB ingress and HTTP readiness before claiming the target is ready. The connected Render creation tools cannot set both required options; do not use public DB defaults as a workaround.
-5. After the actual hostname is assigned, set `PUBLIC_ORIGIN` and `TWITCH_REDIRECT_URI`, register the exact callback, provide real Twitch app credentials, and generate the three application secrets securely. Deploy the verified commit with `TWITCH_ADAPTER=twitch`. Do not weaken production startup checks to get a green deployment.
-6. Record the service/database IDs, deployed commit, deploy ID, terminal deploy state, and assigned URL. Verify HTTPS `/health/live`, `/health/ready`, migrations, current CSS/deep links, unauthenticated rejection, and Socket.IO on that remote service.
-7. With consenting real accounts, verify OAuth, viewer chat -> persisted proof -> OBS reveal, reconnect, refresh/revocation, and the scoped overlay. REQ-FE-003 and two-channel co-op require their own real-account evidence. Use the [external checklist](../agent-handoff/TWITCH_EVENTSUB_CHECKLIST.md).
+Source publication and Linux CI are complete for `4696a39`: frozen install, typecheck, production build, 70 tests across 17 files, and lint all pass. The source audit found no current `.env` secret values or selected provider/private-key patterns in 333 candidate files or 171 earlier reachable history blobs. `.env`, local data, generated builds, caches, and the old source ZIP are excluded. This is a bounded exclusion check, not a comprehensive security audit.
+
+1. The owner must save `RENDER_API_KEY` in the ignored `.env` to enable supported API configuration. At the last presence-only check it was absent. The owner subsequently deferred this setup until later; deployment remains pending that owner action. Never paste it into chat or commit it.
+2. Restore the Zen browser control connection to the signed-in [Twitch developer console](https://dev.twitch.tv/console/apps), or have the owner create the app and save its ID/secret in `.env`. Browser inventory reports an unavailable host; no developer application has been created by this release pass.
+3. Provision only the confirmed Cluenite resources. Configure private DB ingress and HTTP readiness before claiming the target is ready. The connected Render creation tools cannot set both required options; do not use public DB defaults as a workaround.
+4. After the actual hostname is assigned, set `PUBLIC_ORIGIN` and `TWITCH_REDIRECT_URI`, register the exact callback, provide real Twitch app credentials, and generate the three application secrets securely. Deploy the verified commit with `TWITCH_ADAPTER=twitch`. Do not weaken production startup checks to get a green deployment.
+5. Record the service/database IDs, deployed commit, deploy ID, terminal deploy state, and assigned URL. Verify HTTPS `/health/live`, `/health/ready`, migrations, current CSS/deep links, unauthenticated rejection, and Socket.IO on that remote service.
+6. With consenting real accounts, verify OAuth, viewer chat -> persisted proof -> OBS reveal, reconnect, refresh/revocation, and the scoped overlay. REQ-FE-003 and two-channel co-op require their own real-account evidence. Use the [external checklist](../agent-handoff/TWITCH_EVENTSUB_CHECKLIST.md).
 
 ## Rollout, recovery, and stop conditions
 

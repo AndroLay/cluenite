@@ -166,6 +166,7 @@ Compatibility notes for future additions:
 
 ### Integration findings for Claude
 
+- **Auth-disabled fallbacks, reviewed 2 November:** the `unavailable` handlers for rejoin and overlay credentials are registered only when signing/encryption keys are absent. They intentionally return 503 in that development configuration; configured auth routes use the opposite branch. They are not dead duplicate registrations and should remain.
 - **M01 hints:** after the first hint, the server keeps `availableActions` containing `hint` until all three authored hints are used and advances `currentHint`/`hintLevel` on each accepted `!hint`. `MysteryLiveBoard.vue` currently hides the request button whenever `currentHint` is non-null, so the UI exposes only the first hint. Keep the current hint panel visible while also offering another request whenever `availableActions` contains `hint`.
 - **Frontend development dependency, resolved 2 November:** the web package now declares `tailwindcss` directly and the frozen lockfile is synchronized. A clean install, production build, and Vite CSS request pass without an alias. The earlier temporary alias is no longer required.
 - The browser Quick Case path works against one same-origin API/Socket.IO server; no client contract changes are needed for the Q01 flow.

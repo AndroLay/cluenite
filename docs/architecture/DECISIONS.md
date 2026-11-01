@@ -27,6 +27,12 @@
 - **Local PostgreSQL:** PostgreSQL 18.6 binaries and the `cluenite` database are local development state under ignored `.local/postgresql`; they are not a Render database and do not establish cloud readiness.
 - **Historical gameplay experiment:** the Boolean/refutation experiment from the earlier debate is not the primary mechanic. It may be used only as an authored puzzle type if it satisfies the v3 case proof contract.
 
+## UI inventory and route compatibility
+
+The [v3 screen inventory](../reference/Cluenite_Implementation_Ready_v3/02_DESIGN_CONTENT/04_UI_ART_MOTION_AUDIO.md) defines 18 logical UI entries (13 P0, four P1, one P2), including panels and states. A screen does not need an independent URL to satisfy its content and interaction requirements. P0 acceptance follows the row's `lean`, `basic`, `short`, or `one` scope and the actual user journey. Source presence, browser verification, and real-account acceptance are separate evidence.
+
+The current application retains public site paths and query-based live-session/host links. OBS credentials use the URL fragment. The v3 topology's `/stage/:id`, `/overlay/:token`, and `/coop/:id/*` patterns have not been added as aliases. [The reference index](../reference/README.md#screen-inventory-and-browser-routes) records their current mapping. This reconciliation does not rename routes, move credentials into the path, or implement unfinished co-op UI.
+
 ## Package boundaries
 
 `apps/web` may consume `contracts`, `ui`, and `graphics`. `apps/server` may consume `contracts`, `engine`, and `cases`. The engine remains pure and must not depend on Vue, PixiJS, Fastify, Socket.IO, or PostgreSQL. Private case truth must stay out of the public Vite bundle.

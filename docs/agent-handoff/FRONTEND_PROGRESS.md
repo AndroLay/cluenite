@@ -1,5 +1,17 @@
 # Frontend progress (Claude Code)
 
+## Integrator follow-up - 2 November 2026 (Codex)
+
+The backend release integration supersedes the stale-build and publication observations in the earlier F1/Slice E notes below. Source is published privately at `4696a39`; [Linux CI passes](https://github.com/AndroLay/cluenite/actions/runs/41345208201), including 70 tests across 17 files, typecheck, production build, and lint. The [release record](../operations/BACKEND_RELEASE_2026-11-02.md) owns current deployment status.
+
+- The direct Tailwind dependency and frozen lockfile are reconciled. A clean install/build and fresh Vite CSS request pass without an alias.
+- The integrator reviewed `setNotFoundHandler` and fixed `/api` falling back to HTML. Missing API, health, and asset paths retain JSON 404 responses.
+- The current built application was checked on an owned random-port server with an isolated PostgreSQL schema. Guide, settings, setup, and co-op pass at 390 and 1280 px with no overflow or page script errors; every phone header link measures at least 44 px. This closes the header measurement gap without stopping the shared process on port `10000`.
+- The `unavailable` routes are intentional 503 fallbacks inside the branch used when signing/encryption keys are absent. They are not dead routes shadowing the configured auth handlers; no removal is required.
+- Signed-in browser acceptance (REQ-FE-003), image contrast, inline guide targets, full keyboard focus, and visual judgment remain open. Real Twitch app creation is the selected path; absent credentials and unavailable Zen/browser control prevent it. No frontend gameplay or design changes were made by this follow-up.
+
+The following sections preserve each earlier pass's scope and evidence; their old PID, asset, and uncommitted-state observations are historical.
+
 ## Current reconciliation ? 2 November 2026
 
 Documentation integration inspected the current source rather than repeating the older session's feature list. Fresh verification is recorded in [docs/STATUS.md](../STATUS.md).

@@ -420,7 +420,7 @@ onBeforeUnmount(() => {
         class="reset"
         @click="onReset"
       >
-        Reset pratinjau
+        Reset preview
       </button>
     </div>
   </main>

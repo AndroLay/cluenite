@@ -2,7 +2,7 @@
 
 **Last synchronized:** 2 November 2026.
 
-**Source baseline:** release preparation on `main`, originally based on `c320a9b`, preserving the existing backend/frontend work. The private [AndroLay/cluenite repository](https://github.com/AndroLay/cluenite) has been created; exact publication, CI, and deployment evidence is maintained in the [backend release record](operations/BACKEND_RELEASE_2026-11-02.md).
+**Source baseline:** release preparation on `main`, originally based on `c320a9b`, preserving the existing backend/frontend work. The private [AndroLay/cluenite repository](https://github.com/AndroLay/cluenite) contains release source `4696a39` with passing [Linux CI](https://github.com/AndroLay/cluenite/actions/runs/41345208201); exact publication, CI, and deployment evidence is maintained in the [backend release record](operations/BACKEND_RELEASE_2026-11-02.md).
 
 **Scope:** source inspection, local PostgreSQL and browser checks, private repository creation, and confirmed Render workspace inventory. No production Cluenite service/database or Twitch application has been created in this release pass; no submission lookup is claimed.
 
@@ -18,11 +18,13 @@
 | Co-op                  | C01 backend, invitation lifecycle, membership, complementary station proof, and team projections.                                                             | Browser create/invite/accept/rejoin controls are unfinished; two real broadcaster channels have not been verified.                             |
 | OBS                    | Read-only transparent Quick Case presentation and scoped/revocable overlay API credentials.                                                                   | Credential issuance is not exposed through the web UI. Actual OBS Studio behavior remains unverified.                                          |
 | Art and motion         | Brown Noir styling, generated prototype museum/evidence artwork, Pixi scenes, and GSAP timelines.                                                             | Final art approval, audio mix, performance, and motion acceptance remain open.                                                                 |
-| Development            | Node 22/pnpm workspace, direct Tailwind dependency, clean frozen install/build, local tests, and Linux/PostgreSQL CI definition.                              | Exact remote CI and deploy results must be recorded for the published commit.                                                                  |
+| Development            | Node 22/pnpm workspace, direct Tailwind dependency, clean frozen install/build, local tests, and Linux/PostgreSQL CI definition.                              | Linux CI passes for `4696a39`; actual remote deploy results remain unverified.                                                                 |
 | Render and submission  | Schema-validated Blueprint defines a Singapore web service, private PostgreSQL 18 database, and HTTP readiness. Workspace is confirmed.                       | Render API access and Twitch app credentials are missing; remote resources, deploy identity, real chat, OBS, and submission remain unverified. |
 | Language               | Repository policy requires English for documentation, web copy, comments, tests, authored content, and development instructions.                              | External user names/chat and preserved historical quotations retain their original content.                                                    |
 
 ## Frontend visual development target
+
+The official v3 inventory has 18 logical UI entries, S00-S17 (13 P0, four P1, one P2). They include embedded panels and states; page/route counts are not completion criteria. [The reference reconciliation](reference/README.md#screen-inventory-and-browser-routes) maps the v3 route sketch to current links. No fresh per-screen acceptance audit supports a definitive `3 present / 10 partial / 5 missing` total. The implementation table and bounded evidence below remain the current status.
 
 On 2 November, all eight user-provided target PNGs were reviewed and preserved with source filenames and checksums. The [frontend development brief](design/frontend-target/README.md) maps them to existing routes/components and records shared visual rules, implementation gaps, milestone dependencies, responsive states, and acceptance. The user selected shared visuals and public pages first, followed by Q01/host/OBS, M01, then C01. F1 public-page implementation and its bounded visual checks are recorded in [frontend progress](agent-handoff/FRONTEND_PROGRESS.md). Complete visual and authenticated acceptance of the target remains open.
 
