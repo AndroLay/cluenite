@@ -1,0 +1,4 @@
+PASS C01_HARBOR_SIGNAL v1: 6 objects, 3 relations, 6 true contribution actions, proof/negative/dedupe checks
+PASS M01_MISSING_TROPHY v1: 8 objects, 2 relations, 8 true contribution actions, proof/negative/dedupe checks
+PASS Q01_GALLERY_SHADOW v1: 3 objects, 1 relations, 3 true contribution actions, proof/negative/dedupe checks
+PASS 3/3 case fixtures — static graph and limited smoke validation only

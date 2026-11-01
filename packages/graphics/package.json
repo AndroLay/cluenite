@@ -1,0 +1,10 @@
+{
+  "name": "@cluenite/graphics",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit -p tsconfig.json" },
+  "dependencies": { "gsap": "^3.13.0", "pixi.js": "^8.21.0" },
+  "devDependencies": { "typescript": "^5.9.3" }
+}

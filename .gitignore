@@ -1,0 +1,14 @@
+node_modules/
+.pnpm-store/
+.cache/
+.local/
+dist/
+coverage/
+playwright-report/
+test-results/
+.playwright-cli/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+.DS_Store

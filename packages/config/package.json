@@ -1,0 +1,17 @@
+{
+  "name": "@cluenite/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./eslint": "./eslint/base.mjs",
+    "./typescript": "./typescript/base.json",
+    "./vitest": "./vitest/base.ts"
+  },
+  "dependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint-plugin-vue": "^10.8.0",
+    "typescript-eslint": "^8.55.0",
+    "vitest": "^3.2.4"
+  }
+}

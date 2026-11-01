@@ -1,0 +1,13 @@
+{
+  "name": "@cluenite/cases",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit -p tsconfig.json" },
+  "dependencies": {
+    "@cluenite/contracts": "workspace:*",
+    "@cluenite/engine": "workspace:*"
+  },
+  "devDependencies": { "typescript": "^5.9.3" }
+}

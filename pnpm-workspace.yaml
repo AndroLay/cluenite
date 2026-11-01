@@ -1,0 +1,9 @@
+packages:
+  - apps/*
+  - packages/*
+engineStrict: true
+linkWorkspacePackages: true
+sharedWorkspaceLockfile: true
+storeDir: node_modules/.pnpm-store
+allowBuilds:
+  esbuild: true

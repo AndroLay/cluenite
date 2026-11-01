@@ -1,0 +1,49 @@
+/*
+ * Cluenite design tokens (CSS custom properties).
+ * Values mirror design_tokens.json (v1.0 art direction) in this folder.
+ * Keep them in sync manually when the JSON changes.
+ */
+:root {
+  --ink-900: #101c2a;
+  --ink-800: #192b3a;
+  --ink-700: #294154;
+  --paper-100: #f4f0e6;
+  --paper-300: #c5d3dc;
+  --clue-gold: #f5be70;
+  --proof-teal: #75d7bd;
+  --theory-lilac: #b8aaf5;
+  --warning-coral: #f0847e;
+  --neutral-blue: #8faabe;
+
+  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+
+  --space-unit: 4px;
+
+  --motion-fast: 180ms;
+  --motion-mid: 420ms;
+  --motion-clue-discover: 450ms;
+  --motion-evidence-link: 620ms;
+  --motion-challenge: 720ms;
+  --motion-cross-breakthrough: 900ms;
+  --motion-quick-reveal: 3400ms;
+
+  --ease-enter: cubic-bezier(0.18, 0.72, 0.22, 1);
+  --ease-leave: cubic-bezier(0.4, 0, 0.8, 0.3);
+}
+
+/* Reduced motion: keep state changes, shorten everything to a near-instant fade. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 120ms;
+    --motion-mid: 120ms;
+    --motion-clue-discover: 120ms;
+    --motion-evidence-link: 120ms;
+    --motion-challenge: 120ms;
+    --motion-cross-breakthrough: 120ms;
+    --motion-quick-reveal: 120ms;
+  }
+}

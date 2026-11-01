@@ -1,0 +1,29 @@
+{
+  "name": "@cluenite/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@cluenite/cases": "workspace:*",
+    "@cluenite/contracts": "workspace:*",
+    "@cluenite/engine": "workspace:*",
+    "@fastify/static": "^10.1.5",
+    "dotenv": "^16.6.1",
+    "drizzle-orm": "^0.44.7",
+    "fastify": "^5.6.1",
+    "pg": "^8.16.3",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.1",
+    "@types/pg": "^8.15.5",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

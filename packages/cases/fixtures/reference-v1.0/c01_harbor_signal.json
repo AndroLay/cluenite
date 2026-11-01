@@ -1,0 +1,161 @@
+{
+  "id": "C01_HARBOR_SIGNAL",
+  "version": 1,
+  "title": "Signal of the Invisible Ship",
+  "mode": "coop",
+  "estimatedSeconds": 2580,
+  "premise": "A light appears beyond pier P4 with no vessel radar track.",
+  "question": "What is the source of the signal?",
+  "answer": {
+    "id": "SOURCE_B17",
+    "aliases": [
+      "B17",
+      "BUOY_B17"
+    ],
+    "explanation": "Physical scan and maintenance reference verify that buoy B-17 is transmitting its test sequence from P4.",
+    "required": [
+      "FLASH_212",
+      "CODE_212",
+      "OBJECT_NEAR_P4",
+      "B17_AT_P4",
+      "SCAN_B17",
+      "REF_B17",
+      "REL_CODE_212",
+      "REL_POSITION_P4",
+      "REL_JOINT_B17"
+    ]
+  },
+  "objects": [
+    {
+      "id": "LIGHT",
+      "role": "field",
+      "unlocks": [
+        "FLASH_212"
+      ],
+      "copy": "2 short, 1 long, 2 short"
+    },
+    {
+      "id": "P4",
+      "role": "field",
+      "unlocks": [
+        "OBJECT_NEAR_P4"
+      ],
+      "copy": "Small floating object spotted near pier P4"
+    },
+    {
+      "id": "SCAN",
+      "role": "field",
+      "unlocks": [
+        "SCAN_B17"
+      ],
+      "copy": "Fresh 2-1-2 signal & buoy silhouette near P4"
+    },
+    {
+      "id": "MANUAL",
+      "role": "records",
+      "unlocks": [
+        "CODE_212"
+      ],
+      "copy": "Code 2-1-2 = maintenance beacon test"
+    },
+    {
+      "id": "DEPLOYMENT",
+      "role": "records",
+      "unlocks": [
+        "B17_AT_P4"
+      ],
+      "copy": "Buoy B-17 deployed near P4"
+    },
+    {
+      "id": "REFERENCE",
+      "role": "records",
+      "unlocks": [
+        "REF_B17"
+      ],
+      "copy": "B-17 reference scan and authorized test window matches"
+    }
+  ],
+  "evidence": [
+    {
+      "id": "FLASH_212",
+      "source": "LIGHT",
+      "role": "field"
+    },
+    {
+      "id": "OBJECT_NEAR_P4",
+      "source": "P4",
+      "role": "field"
+    },
+    {
+      "id": "SCAN_B17",
+      "source": "SCAN",
+      "role": "field"
+    },
+    {
+      "id": "CODE_212",
+      "source": "MANUAL",
+      "role": "records"
+    },
+    {
+      "id": "B17_AT_P4",
+      "source": "DEPLOYMENT",
+      "role": "records"
+    },
+    {
+      "id": "REF_B17",
+      "source": "REFERENCE",
+      "role": "records"
+    }
+  ],
+  "relations": [
+    {
+      "id": "REL_CODE_212",
+      "type": "link",
+      "between": [
+        "FLASH_212",
+        "CODE_212"
+      ],
+      "requires": [
+        "FLASH_212",
+        "CODE_212"
+      ]
+    },
+    {
+      "id": "REL_POSITION_P4",
+      "type": "link",
+      "between": [
+        "OBJECT_NEAR_P4",
+        "B17_AT_P4"
+      ],
+      "requires": [
+        "OBJECT_NEAR_P4",
+        "B17_AT_P4"
+      ]
+    },
+    {
+      "id": "REL_JOINT_B17",
+      "type": "joint",
+      "requires": [
+        "SCAN_B17",
+        "REF_B17",
+        "REL_CODE_212",
+        "REL_POSITION_P4"
+      ],
+      "roles": [
+        "field",
+        "records"
+      ]
+    }
+  ],
+  "hints": [
+    "Compare flashes with signal manual.",
+    "Look around P4 and check buoy deployment.",
+    "Match live scan with B-17 maintenance reference."
+  ],
+  "revealFrames": [
+    "P4 flashes 2-1-2",
+    "maintenance manual diagram",
+    "A and B verify matching live evidence",
+    "Buoy B-17 still in test mode"
+  ]
+}

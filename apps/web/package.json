@@ -1,0 +1,29 @@
+{
+  "name": "@cluenite/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@cluenite/contracts": "workspace:*",
+    "@cluenite/graphics": "workspace:*",
+    "@cluenite/ui": "workspace:*",
+    "@tailwindcss/vite": "^4.3.3",
+    "gsap": "^3.13.0",
+    "pinia": "^3.0.3",
+    "pixi.js": "^8.21.0",
+    "socket.io-client": "^4.8.1",
+    "vue": "^3.5.44"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.2",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.12",
+    "vue-tsc": "^3.1.1"
+  }
+}
