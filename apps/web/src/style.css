@@ -64,15 +64,19 @@
   scrollbar-color: var(--case-rule-strong) var(--case-bg);
 }
 
-/* The desk background lives on body so it covers the whole viewport, not just the shell box. */
+/* The desk background lives on body so it covers the whole viewport, not just the shell box.
+   A warm lamp pool falls on the upper right where the board sits, and the edges fall into shadow.
+   Fixed attachment keeps the light in place while the page scrolls. */
 body {
   min-width: 320px;
   min-height: 100vh;
   margin: 0;
   background:
-    radial-gradient(1100px 520px at 88% -8%, rgba(245, 190, 112, 0.08), transparent 62%),
+    radial-gradient(ellipse 58% 46% at 76% 18%, rgba(245, 190, 112, 0.13), transparent 72%),
     radial-gradient(900px 480px at -10% 110%, rgba(117, 215, 189, 0.05), transparent 60%),
+    radial-gradient(ellipse 120% 90% at 50% 40%, transparent 48%, rgba(5, 11, 18, 0.72) 100%),
     var(--case-bg);
+  background-attachment: fixed;
 }
 
 ::selection {
@@ -80,10 +84,13 @@ body {
   color: var(--case-slip-ink);
 }
 
-/* Set by App.vue when ?mode=obs is used as an OBS browser source. */
+/* Set by App.vue when ?mode=obs is used as an OBS browser source. color-scheme: dark makes Chromium
+   paint a dark canvas behind a transparent root, which shows as a box over the stream, so it is reset here.
+   Keep this block last among the root rules so the OBS overrides win. */
 html.obs-mode,
 html.obs-mode body {
   background: transparent;
+  color-scheme: normal;
 }
 
 @media (prefers-reduced-motion: reduce) {

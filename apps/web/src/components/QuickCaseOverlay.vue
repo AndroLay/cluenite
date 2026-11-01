@@ -22,6 +22,10 @@ const emit = defineEmits<{
   "toggle-mute": [];
 }>();
 
+const clueStatuses = computed(() =>
+  props.view.clues.map((clue) => clue.status),
+);
+
 const STAGES: readonly QuickStage[] = ["observe", "connect", "challenge", "reveal"];
 const STAGE_LABEL: Record<QuickStage, string> = {
   observe: "Observe",
@@ -63,7 +67,7 @@ const linkSummary = computed(() => {
 });
 // Says why verdicts are off, instead of only dimming the buttons.
 const verdictNote = computed(() => {
-  if (verdictable.value || props.view.paused || props.view.stage === "reveal") return null;
+  if (props.obs || verdictable.value || props.view.paused || props.view.stage === "reveal") return null;
   return "Verdicts open after two clues are linked.";
 });
 
@@ -255,7 +259,7 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
-    <CaseScene :stage="view.stage" :obs="props.obs ?? false" />
+    <CaseScene :stage="view.stage" :clues="clueStatuses" :obs="props.obs ?? false" />
 
     <ol class="qc-steps" aria-label="Case progress">
       <li
@@ -333,7 +337,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div class="qc-verdicts">
+    <div v-if="!props.obs" class="qc-verdicts">
       <button
         v-for="verdict in view.verdicts"
         :key="verdict.id"
@@ -377,8 +381,12 @@ onBeforeUnmount(() => {
   background:
     radial-gradient(560px 240px at 50% -4%, rgba(245, 190, 112, 0.12), transparent 70%),
     var(--case-panel);
+  /* Lamp catches the top rim; a tight contact shadow and a long soft drop lift the board off the desk. */
   box-shadow:
+    inset 0 1px 0 rgba(245, 190, 112, 0.22),
     inset 0 0 96px rgba(0, 0, 0, 0.5),
+    0 2px 6px rgba(0, 0, 0, 0.35),
+    0 -24px 80px -48px rgba(245, 190, 112, 0.2),
     0 30px 60px -34px rgba(0, 0, 0, 0.9);
   color: var(--case-paper);
   font-family: var(--font-body);
@@ -785,7 +793,9 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
+/* Reserve two lines so the body text lines up across a row, even when one title wraps. */
 .qc-clue-label {
+  min-height: 2.4em;
   font-family: var(--font-display);
   font-size: 1.0625rem;
   font-weight: 600;

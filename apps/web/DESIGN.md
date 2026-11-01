@@ -52,17 +52,23 @@ Shape and motion: `--radius-slip: 3px`; `--dur-state: 220ms`; `--ease-out-expo`.
 
 ## Scene and components
 
-- **Case scene** (`CaseScene.vue`): an inline SVG, viewBox 600×200, `aria-hidden`. Parts: wall
-  gradient, perspective floor, window with rain, hanging lamp with a flickering cone, dust
-  motes, three framed pictures (gold, teal, lilac), a wall clock, three evidence chips on the
-  table, a detective silhouette with a magnifier, and a second investigator standing in the lamp
-  light. Both figures are faceless on purpose. The detective's arm angle follows `data-stage`
-  (observe -28°, connect 8°, challenge -50°, reveal -14°), and the lamp cone is brightest in
-  reveal. Aspect 3:1; in OBS 4:1. Motion is CSS only: lamp flicker, rain fall, breathing bodies,
-  mote drift, and a slow clock. Reveal has one authored moment: a single lilac lightning flash
-  (1.8 s, once), the clock hands stop, and the second investigator turns its head toward the
-  board. Under `prefers-reduced-motion` every scene animation is off, including the flash and the
-  clock.
+- **Case scene** (`CaseScene.vue` → `src/scene/caseScene.ts`): a PixiJS 8 canvas (`pixi.js ^8.21.0`),
+  `aria-hidden`. The module loads through a dynamic import, so the Pixi chunk (about 250 kB, 78 kB
+  gzip) only loads when the scene mounts. It draws in a 600×200 design space. Parts: wall, perspective
+  floor, window with rain, hanging lamp with a flickering cone, dust motes, three framed pictures, a
+  wall clock, three case-file chips on the table, a detective with a magnifier, and a second
+  investigator in the lamp light. Both figures are faceless on purpose. Aspect 3:1; in OBS 4:1.
+  - Stage pose: the detective's arm and head follow the stage (observe -28°, connect 8°, challenge
+    -50°, reveal -14°). In reveal the second investigator's head turns -7°, and the lamp cone reaches
+    full strength. Arm and head ease over 0.7 s; the cone over 0.6 s.
+  - Clues: each clue drives the chip at the same index. Locked is a dark slip, unlocked is paper with
+    two ink rules, and linked is paper with a 2 px teal strip. Non-locked chips lift 3 px over 0.35 s.
+  - Thread: once two or more clues are linked, a teal thread arcs through the linked chips.
+  - Reveal: one lilac flash (1.8 s, after a 0.3 s delay, once), and the wall clock hands stop. The
+    clock only advances outside reveal.
+  - Reduced motion (`prefers-reduced-motion: reduce`): the Pixi ticker stops. The scene paints once
+    per state change with time pinned at 0, with no flash and no cone flicker. Chips and thread snap
+    to their final state.
 - **Case board** (`.qc`): dark ink panel, 1px gold border, inner hairline inset 6px. In OBS the
   panel is 90% dark (`rgba(16, 28, 42, 0.9)`) with no border, so text stays readable over
   gameplay. The page itself stays transparent.
@@ -74,8 +80,11 @@ Shape and motion: `--radius-slip: 3px`; `--dur-state: 220ms`; `--ease-out-expo`.
   badge. Opened clues are paper slips; they play `clue-open` once (520ms, slides up and flashes
   gold, then settles). Picked-for-link clues get an inner amber ring. Linked clues are paper
   slips pinned to the board with a teal line.
-- **Thread**: the link connector is drawn in `--case-thread`. GSAP timelines from
-  `packages/graphics` drive the connector and the reveal.
+- **Thread**: there are two threads, and they are separate. The overlay's link connector and reveal
+  are GSAP timelines (`buildEvidenceLinkTimeline`, `buildRevealTimeline` from `packages/graphics`,
+  used in `QuickCaseOverlay.vue`) and use `--case-thread`. The scene's thread is a Pixi drawing
+  (`drawThread` in `caseScene.ts`). The scene gets only `stage` and `clues`, so it does not read the
+  overlay's timeline.
 - **Stamp and badge**: `.qc-badge` (simulation notice) and `.qc-stamp` (verdict) are the only
   rotated elements (-2°).
 - **Call to action** (`.qc-action`): solid amber with slip-ink text, weight 700, only when
@@ -129,18 +138,48 @@ Shape and motion: `--radius-slip: 3px`; `--dur-state: 220ms`; `--ease-out-expo`.
 
 ## Layout
 
-- ≥960px: masthead in the left column (sticky, top 40px), 600px board on the right. Shell max
-  width 1240px.
-- <960px: single column, masthead first.
+- ≥1240px: masthead in the left column (sticky, top 40px), 600px board on the right. Shell max
+  width 1240px. The wordmark needs ~434px beside the board, which this width provides.
+- ≥1360px (non-OBS): the shell widens to 1400px max and the board column to 680px, so the scene
+  grows with it.
+- <1240px: single column, masthead first, board below.
 - Clue cards: 3 columns; 1 column below 480px.
 - Stage track: 4 columns from 480px; 2×2 below 480px.
 - OBS (`?mode=obs`): board only, no masthead, no padding, transparent page.
 
 ## Verification status
 
+### Latest round: PixiJS case scene (dev server on port 5175)
+
+- Typecheck (`vue-tsc --noEmit`) exit 0; `vite build` exit 0. Sizes: `caseScene` chunk 250.08 kB
+  (gzip 77.98 kB), `index` JS 312.73 kB (gzip 116.85 kB), CSS 30.61 kB (gzip 6.79 kB).
+- Desktop 1280×900, live flow in the preview: reload, inspect CAM (unlocked, stage connect; CAM is not
+  selectable yet), inspect ACCESS, select CAM and ACCESS (Selected 2/2), "Link selected (2/2)" → Linked
+  2/2 and "✓ Linked: CAM ↔ ACCESS". Stage challenge with verdicts active; choose "An intruder" → stage
+  reveal (Recap, SCHEDULE "Sealed", the chosen verdict, placeholder reveal text). The linked cards and
+  the teal thread are visible. Screenshots: `r8-desk-challenge.png`, `r8-desk-reveal.png`.
+- Mobile 390×844 at reveal: stage nav 2×2, clues in one column, scene visible (`r8-mob-reveal.png`).
+- OBS `?mode=obs` at 1280×720: the page outside the board is transparent, and the 600px board with
+  the 4:1 scene looks right (`r8-obs-fixed.png`). Cause: `color-scheme: dark` on `:root` made Chromium
+  paint a dark canvas behind the transparent root. `html.obs-mode` now sets `color-scheme: normal`
+  (`style.css`).
+- Console after the verdict: 0 errors, 0 warnings.
+- Impeccable detector (`detect --json apps/web/src`): one finding, `overused-font` on Fraunces
+  (`style.css:5`). Kept, because the brief fixes Fraunces as the display face.
+- Not verified at runtime: reveal lightning (the keyframes exist in code, but no browser check),
+  reduced motion (code path only), the live flow (`?session=`) on 5175 (the API dev server crashes with
+  `FST_ERR_DUPLICATED_ROUTE`), OBS in OBS Studio, and the console after the first gesture.
+- Vite on port 5174 serves a stale `style.css` even though HMR logs updates. Checks use 5175 until the
+  owner stops 5174.
+
+### Earlier results (SVG scene; superseded where they conflict with the latest round)
+
+The entries below were written for the SVG scene and the earlier build. Where they conflict with the
+latest round, the latest round is correct.
+
 - Typecheck (`vue-tsc --noEmit`) and production build (`vite build`) pass after the rain, thunder,
   clock, second investigator, and reveal flash were added, and again after the OBS hides (Mute,
-  Skip) and the reveal Link hide. The latest build sizes are in the build line further down.
+  Skip) and the reveal Link hide. Current sizes are in the latest round above.
 - Browser (Playwright, dev server, preview data): 1280×900 and 375×812 were viewed by eye in the
   observe stage, and the layout holds at both widths. Console showed 0 errors and 0 warnings on
   desktop, mobile, and OBS.
@@ -187,8 +226,8 @@ Shape and motion: `--radius-slip: 3px`; `--dur-state: 220ms`; `--ease-out-expo`.
   failed`). A second dev start could not bind port 10000 (`EADDRINUSE`), because an older dev stack
   (`tsx watch`, started 09:31) already holds it. That stack was not stopped.
 - Build and typecheck (after the chosen-verdict and readiness changes): `vue-tsc --noEmit` exit 0,
-  `tsc --noEmit` (server) exit 0, `vite build` exit 0. Build: JS 315.29 kB (gzip 117.39 kB), CSS
-  33.35 kB (gzip 7.27 kB).
+  `tsc --noEmit` (server) exit 0, `vite build` exit 0. Build (superseded; SVG era): JS 315.29 kB
+  (gzip 117.39 kB), CSS 33.35 kB (gzip 7.27 kB).
 - Not verified: rain and thunder heard in a browser with real audio output (not checked), the browser
   console after the first gesture, and OBS as a real browser source in OBS Studio.
 - Open decision (product owner): whether OBS keeps the verdict buttons visible but `disabled`, as now,

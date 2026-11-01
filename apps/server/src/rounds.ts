@@ -47,7 +47,9 @@ export function createRoundStore(now: () => number = Date.now): RoundStore {
   return {
     snapshot(sessionId) {
       const state = rounds.get(sessionId);
-      return state ? toRoundSnapshot(state, now()) : undefined;
+      return state
+        ? { ...toRoundSnapshot(state, now()), chosenVerdictId: state.solvedBy }
+        : undefined;
     },
 
     command(sessionId, text) {

@@ -38,8 +38,7 @@ export interface QuickCaseView {
   timer: QuickTimer;
   clues: QuickClue[];
   verdicts: QuickVerdict[];
-  // The verdict this page sent and the server accepted. The snapshot does not say which verdict
-  // was picked, so the page sets this. Only the reveal stage shows it.
+  // The verdict the server accepted, from the snapshot. Only the reveal stage shows it.
   chosenVerdictId: string | null;
   revealText: string | null;
 }
@@ -68,7 +67,7 @@ export function quickCaseFromSnapshot(snapshot: RoundSnapshot, receivedAt: numbe
       status: clue.status,
     })),
     verdicts: snapshot.verdicts.map((verdict) => ({ id: verdict.id, label: verdict.label })),
-    chosenVerdictId: null,
+    chosenVerdictId: snapshot.chosenVerdictId ?? null,
     revealText: snapshot.revealText,
   };
 }

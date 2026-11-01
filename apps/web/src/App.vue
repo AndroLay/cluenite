@@ -41,11 +41,14 @@ const sfx = createSfxPlayer();
 // Room tone starts on the first gesture on the page. OBS never creates it, so the stream audio is unchanged.
 const ambience = obsMode ? null : createAmbience();
 
-// Set only after the server accepts a verdict, or after a preview verdict. Merged into the view below.
+// Set only after the server accepts a verdict, or after a preview verdict. The server snapshot
+// carries the same value, which is what OBS reads; the local pick covers the page that sent it.
 const chosenVerdictId = ref<string | null>(null);
 const currentView = computed<QuickCaseView | null>(() => {
   const base = liveMode ? liveView.value : previewView.value;
-  return base === null ? null : { ...base, chosenVerdictId: chosenVerdictId.value };
+  return base === null
+    ? null
+    : { ...base, chosenVerdictId: chosenVerdictId.value ?? base.chosenVerdictId };
 });
 const connectionBanner = computed<string | null>(() => {
   if (!liveMode || sessionError !== null) return null;
@@ -381,6 +384,22 @@ h1 {
     color var(--dur-state) ease;
 }
 .reset:hover {
+/* One authored motion moment: on load the evidence board rises into the lamp light.
+   Skipped in OBS, where the browser source must stay still. Reduced motion is handled globally. */
+@keyframes board-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.shell:not(.is-obs) .board {
+  animation: board-rise 900ms var(--ease-out-expo) both;
+}
+
   border-color: var(--case-paper-dim);
   color: var(--case-paper);
 }
@@ -389,7 +408,9 @@ h1 {
   outline-offset: 3px;
 }
 
-@media (min-width: 960px) {
+/* Two columns need ~434px for the masthead wordmark beside the 600px board; that holds from
+   about 1240px. Between 960px and 1240px the layout stays single-column (masthead, then board). */
+@media (min-width: 1240px) {
   .shell:not(.is-obs) {
     grid-template-columns: minmax(0, 1fr) minmax(0, 600px);
     column-gap: clamp(40px, 6vw, 96px);
@@ -410,3 +431,16 @@ h1 {
   }
 }
 </style>
+
+/* Wide desktop: the room takes a larger share of the screen, so the scene reads as a place.
+   The wordmark needs ~434px. At 680px the board needs a wider shell (1400px max), otherwise the
+   masthead column falls below that width and the wordmark runs under the board. */
+@media (min-width: 1360px) {
+  .shell:not(.is-obs) {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 680px);
+    max-width: 1400px;
+  }
+  .shell:not(.is-obs) .board {
+    width: min(100%, 680px);
+  }
+}
