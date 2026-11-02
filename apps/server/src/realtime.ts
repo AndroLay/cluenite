@@ -20,6 +20,7 @@ import type {
 import { readCookie } from "./auth/authorization.js";
 import type { SessionStore } from "./auth/sessionStore.js";
 import { createRateLimiter } from "./rounds.js";
+import { createWorkBudget } from "./ops/workBudget.js";
 
 export const SNAPSHOT_EVENT = "session:snapshot";
 export const DELTA_EVENT = "session:delta";
@@ -143,8 +144,14 @@ export function attachRealtime(
   const { config, sessions, rounds } = options;
   const limiter = createRateLimiter(COMMAND_LIMIT, COMMAND_WINDOW_MS);
   const resyncLimiter = createRateLimiter(3, 5_000);
+  const joinLimiter = createRateLimiter(3, 5_000);
+  const work = createWorkBudget(16, 2);
+  const handshakes = createWorkBudget(8);
 
   io.use((socket, next) => {
+    if (io.sockets.sockets.size >= 256) return next(new Error("server_busy"));
+    const release = handshakes.acquire();
+    if (!release) return next(new Error("server_busy"));
     void (async () => {
       if (!sessions) {
         next(new Error("authentication_not_configured"));
@@ -192,7 +199,9 @@ export function attachRealtime(
         sessionTokenHash: host.sessionTokenHash,
       } satisfies Principal;
       next();
-    })().catch(() => next(new Error("unauthorized")));
+    })()
+      .catch(() => next(new Error("unauthorized")))
+      .finally(release);
   });
 
   io.on("connection", (socket) => {
@@ -207,57 +216,74 @@ export function attachRealtime(
         : overlayPrincipalRoom(principal.sessionId),
     );
 
-    socket.on("session:join", (payload: unknown, ack?: Ack<JoinAck>) => {
-      void (async () => {
-        if (!(await principalIsActive(principal, sessions!))) {
-          ack?.({ ok: false, code: "NOT_AUTHORIZED" });
-          socket.disconnect(true);
+    socket.on(
+      "session:join",
+      (payload: unknown, suppliedAck?: Ack<JoinAck>) => {
+        const ack = typeof suppliedAck === "function" ? suppliedAck : undefined;
+        if (!joinLimiter.take(socket.id)) {
+          ack?.({ ok: false, code: "RATE_LIMITED" });
           return;
         }
-        const parsed = joinSessionSchema.safeParse(payload);
-        if (!parsed.success) {
-          ack?.({ ok: false, code: "CONTENT_ERROR" });
+        const release = work.acquire(socket.id);
+        if (!release) {
+          ack?.({ ok: false, code: "RATE_LIMITED" });
           return;
         }
-        const first = await authorizedSnapshot(
-          principal,
-          parsed.data.sessionId,
-          rounds,
-        );
-        if (!first) {
-          ack?.({ ok: false, code: "NOT_AVAILABLE" });
-          return;
-        }
-        const room = roomFor(parsed.data.sessionId, first.team ?? "A");
-        await socket.join(room);
-        const current = await authorizedSnapshot(
-          principal,
-          parsed.data.sessionId,
-          rounds,
-        );
-        if (
-          !current ||
-          current.team !== first.team ||
-          !(await principalIsActive(principal, sessions!))
-        ) {
-          await socket.leave(room);
-          ack?.({ ok: false, code: "NOT_AVAILABLE" });
-          return;
-        }
-        ack?.({ ok: true, snapshot: current });
-        if (options.connectionStatusForSession) {
-          void options
-            .connectionStatusForSession(parsed.data.sessionId, principal)
-            .then((status) => {
-              if (status) socket.emit(CONNECTION_STATUS_EVENT, status);
-            })
-            .catch(() => undefined);
-        }
-      })().catch(() => ack?.({ ok: false, code: "NOT_AVAILABLE" }));
-    });
+        void (async () => {
+          if (!(await principalIsActive(principal, sessions!))) {
+            ack?.({ ok: false, code: "NOT_AUTHORIZED" });
+            socket.disconnect(true);
+            return;
+          }
+          const parsed = joinSessionSchema.safeParse(payload);
+          if (!parsed.success) {
+            ack?.({ ok: false, code: "CONTENT_ERROR" });
+            return;
+          }
+          const first = await authorizedSnapshot(
+            principal,
+            parsed.data.sessionId,
+            rounds,
+          );
+          if (!first) {
+            ack?.({ ok: false, code: "NOT_AVAILABLE" });
+            return;
+          }
+          const room = roomFor(parsed.data.sessionId, first.team ?? "A");
+          await socket.join(room);
+          const current = await authorizedSnapshot(
+            principal,
+            parsed.data.sessionId,
+            rounds,
+          );
+          if (
+            !current ||
+            current.team !== first.team ||
+            !(await principalIsActive(principal, sessions!))
+          ) {
+            await socket.leave(room);
+            ack?.({ ok: false, code: "NOT_AVAILABLE" });
+            return;
+          }
+          ack?.({ ok: true, snapshot: current });
+          if (options.connectionStatusForSession) {
+            void options
+              .connectionStatusForSession(parsed.data.sessionId, principal)
+              .then((status) => {
+                if (status) socket.emit(CONNECTION_STATUS_EVENT, status);
+              })
+              .catch(() => undefined);
+          }
+        })()
+          .catch(() => ack?.({ ok: false, code: "NOT_AVAILABLE" }))
+          .finally(release);
+      },
+    );
 
     socket.on("session:resync", (payload: unknown) => {
       if (!resyncLimiter.take(socket.id)) return;
+      const release = work.acquire(socket.id);
+      if (!release) return;
       void (async () => {
         if (!(await principalIsActive(principal, sessions!))) {
           socket.disconnect(true);
@@ -276,12 +302,15 @@ export function attachRealtime(
           expectedRevision: parsed.data.currentRevision + 1,
           serverRevision: current.revision,
         });
-      })().catch(() => undefined);
+      })()
+        .catch(() => undefined)
+        .finally(release);
     });
 
     socket.on(
       "session:command",
-      (payload: unknown, ack?: Ack<CommandResult>) => {
+      (payload: unknown, suppliedAck?: Ack<CommandResult>) => {
+        const ack = typeof suppliedAck === "function" ? suppliedAck : undefined;
         if (principal.role !== "host") {
           ack?.(
             rejected("NOT_AUTHORIZED", "Overlay credentials are read-only."),
@@ -295,6 +324,16 @@ export function attachRealtime(
         const parsed = submitCommandSchema.safeParse(payload);
         if (!parsed.success) {
           ack?.(rejected("CONTENT_ERROR", "Invalid command payload."));
+          return;
+        }
+        const release = work.acquire(socket.id);
+        if (!release) {
+          ack?.(
+            rejected(
+              "RATE_LIMITED",
+              "Server is busy. Retry with the same key.",
+            ),
+          );
           return;
         }
         void principalIsActive(principal, sessions!)
@@ -329,13 +368,15 @@ export function attachRealtime(
                 "The round could not process this command.",
               ),
             );
-          });
+          })
+          .finally(release);
       },
     );
 
     socket.on(
       "session:control",
-      (payload: unknown, ack?: Ack<CommandResult>) => {
+      (payload: unknown, suppliedAck?: Ack<CommandResult>) => {
+        const ack = typeof suppliedAck === "function" ? suppliedAck : undefined;
         if (principal.role !== "host") {
           ack?.(
             rejected("NOT_AUTHORIZED", "Overlay credentials are read-only."),
@@ -349,6 +390,16 @@ export function attachRealtime(
         const parsed = sessionControlSchema.safeParse(payload);
         if (!parsed.success) {
           ack?.(rejected("CONTENT_ERROR", "Invalid control payload."));
+          return;
+        }
+        const release = work.acquire(socket.id);
+        if (!release) {
+          ack?.(
+            rejected(
+              "RATE_LIMITED",
+              "Server is busy. Retry with the same key.",
+            ),
+          );
           return;
         }
         void principalIsActive(principal, sessions!)
@@ -379,32 +430,62 @@ export function attachRealtime(
                 "The round control could not be applied.",
               ),
             );
-          });
+          })
+          .finally(release);
       },
     );
 
     socket.on("disconnect", () => {
       limiter.forget(socket.id);
       resyncLimiter.forget(socket.id);
+      joinLimiter.forget(socket.id);
     });
   });
 
+  let checking = false;
+  let closed = false;
   const sessionCheckTimer = setInterval(() => {
-    for (const socket of io.sockets.sockets.values()) {
-      const principal = getPrincipal(socket);
-      if (!principal) {
-        socket.disconnect(true);
-        continue;
-      }
-      void principalIsActive(principal, sessions!)
-        .then((active) => {
-          if (!active) socket.disconnect(true);
-        })
-        .catch(() => socket.disconnect(true));
-    }
+    if (checking || closed || !sessions) return;
+    checking = true;
+    void (async () => {
+      const checked = new Map<string, Promise<boolean>>();
+      const sockets = Array.from(io.sockets.sockets.values());
+      let cursor = 0;
+      await Promise.all(
+        Array.from({ length: Math.min(4, sockets.length) }, async () => {
+          while (cursor < sockets.length && !closed) {
+            const socket = sockets[cursor++]!;
+            const principal = getPrincipal(socket);
+            if (!principal) {
+              socket.disconnect(true);
+              continue;
+            }
+            const key =
+              principal.role === "host"
+                ? `host:${principal.sessionTokenHash}`
+                : `overlay:${principal.tokenHash}`;
+            let active = checked.get(key);
+            if (!active) {
+              active = principalIsActive(principal, sessions).catch(
+                () => false,
+              );
+              checked.set(key, active);
+            }
+            if (!(await active) && !closed) socket.disconnect(true);
+          }
+        }),
+      );
+    })().finally(() => {
+      checking = false;
+    });
   }, 30_000);
   sessionCheckTimer.unref?.();
-  return { close: () => clearInterval(sessionCheckTimer) };
+  return {
+    close: () => {
+      closed = true;
+      clearInterval(sessionCheckTimer);
+    },
+  };
 }
 
 export function startOutboxPublisher(
@@ -417,6 +498,7 @@ export function startOutboxPublisher(
   let running = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let resolveCurrent: (() => void) | null = null;
+  let pollDelay = intervalMs;
 
   const publish = (message: OutboxMessage): void => {
     const publishTeam = (
@@ -463,6 +545,7 @@ export function startOutboxPublisher(
     running = true;
     try {
       const batch = await rounds.claimOutboxBatch(50);
+      pollDelay = batch.length ? intervalMs : Math.min(1_000, pollDelay * 2);
       for (const message of batch) {
         try {
           publish(message);
@@ -472,6 +555,7 @@ export function startOutboxPublisher(
         }
       }
     } catch (error) {
+      pollDelay = Math.min(1_000, Math.max(intervalMs, pollDelay * 2));
       const code =
         error instanceof Error && "code" in error
           ? String(error.code)
@@ -481,7 +565,7 @@ export function startOutboxPublisher(
       running = false;
       resolveCurrent?.();
       resolveCurrent = null;
-      if (!closed) timer = setTimeout(() => void tick(), intervalMs);
+      if (!closed) timer = setTimeout(() => void tick(), pollDelay);
     }
   };
 

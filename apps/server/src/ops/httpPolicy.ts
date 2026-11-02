@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
+import { createWorkBudget } from "./workBudget.js";
 
 export const HTTP_BODY_LIMIT = 16 * 1024;
 
@@ -40,7 +41,12 @@ export function createAdmission(
 
 export function registerHttpAdmission(
   app: FastifyInstance,
-  options: { now?: () => number; apiMax?: number; oauthMax?: number } = {},
+  options: {
+    now?: () => number;
+    apiMax?: number;
+    oauthMax?: number;
+    maxInFlight?: number;
+  } = {},
 ) {
   app.setErrorHandler((error, request, reply) => {
     const failure = error as { statusCode?: number };
@@ -65,11 +71,36 @@ export function registerHttpAdmission(
   });
   const api = createAdmission(options.apiMax ?? 600, 60_000, options.now);
   const oauth = createAdmission(options.oauthMax ?? 20, 60_000, options.now);
+  const work = createWorkBudget(options.maxInFlight ?? 32);
+  const readinessWork = createWorkBudget(2);
+  const admitted = new WeakMap<FastifyRequest, () => void>();
+  const release = (request: FastifyRequest) => {
+    admitted.get(request)?.();
+    admitted.delete(request);
+  };
+  app.addHook("onSend", async (request, _reply, payload) => {
+    release(request);
+    return payload;
+  });
+  app.addHook("onRequestAbort", async (request) => {
+    release(request);
+  });
   app.addHook("onRequest", async (request, reply) => {
     const rawPath = request.url.split(/[?;]/, 1)[0] ?? "";
     const path = request.routeOptions.url?.startsWith("/api/")
       ? request.routeOptions.url
       : rawPath;
+    if (path === "/health/ready") {
+      reply.header("cache-control", "no-store");
+      const finished = readinessWork.acquire();
+      if (!finished)
+        return reply
+          .header("retry-after", "1")
+          .code(503)
+          .send({ status: "not-ready" });
+      admitted.set(request, finished);
+      return;
+    }
     if (path !== "/api" && !path.startsWith("/api/")) return;
     reply.header("cache-control", "no-store");
     const general = api.take(request.ip);
@@ -87,6 +118,13 @@ export function registerHttpAdmission(
         .header("cache-control", "no-store")
         .code(429)
         .send({ error: "rate_limited" });
+    const finished = work.acquire();
+    if (!finished)
+      return reply
+        .header("retry-after", "1")
+        .code(503)
+        .send({ error: "server_busy" });
+    admitted.set(request, finished);
   });
 }
 

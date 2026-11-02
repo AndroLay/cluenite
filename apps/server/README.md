@@ -98,6 +98,10 @@ Socket handshakes require the configured origin, with an exact same-origin `Refe
 
 ## Verification
 
+The [resource limits guide](../../docs/operations/BACKEND_RESOURCE_LIMITS.md)
+records concurrency/connection budgets, database cancellation, idle polling,
+overload diagnostics, retry behavior, and the limits of local load evidence.
+
 The [simple setup handoff](../../docs/agent-handoff/BACKEND_SIMPLE_SETUP.md)
 defines session rediscovery, username invitations, OBS credential handling, and
 the remaining frontend wiring. These additive APIs preserve advanced controls

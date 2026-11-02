@@ -1,5 +1,6 @@
 import type { ChatActionEnvelope } from "@cluenite/contracts";
 import { createRateLimiter } from "../rounds.js";
+import { createWorkBudget } from "../ops/workBudget.js";
 import type { ConnectionStatus as RealtimeConnectionStatus } from "@cluenite/contracts";
 import type {
   SessionStore,
@@ -43,6 +44,11 @@ export interface TwitchConnectionDiagnostics {
   readonly status: ConnectionStatus;
   readonly activeSubscriptions: number;
   readonly lastNotificationAt: string | null;
+  readonly chat: {
+    readonly inFlight: number;
+    readonly rejected: number;
+    readonly overloaded: boolean;
+  };
 }
 
 export type TwitchConnectionStatusListener = (
@@ -51,6 +57,10 @@ export type TwitchConnectionStatusListener = (
 ) => void;
 
 interface WorkerState {
+  chatInFlight: number;
+  chatRejected: number;
+  chatOverloaded: boolean;
+  chatOverloadTimer: ReturnType<typeof setTimeout> | null;
   status: ConnectionStatus;
   statusSince: string;
   socket: EventSubSocket | null;
@@ -116,6 +126,8 @@ export class TwitchConnectionManager {
   private readonly actorLimiter = createRateLimiter(5, 5_000);
   private readonly socketFactory: EventSubSocketFactory;
   private shutdownStarted = false;
+  private starting = false;
+  private readonly chatWork = createWorkBudget(16, 4);
 
   constructor(
     private readonly api: TwitchApi,
@@ -133,15 +145,23 @@ export class TwitchConnectionManager {
   }
 
   statusForUser(twitchUserId: string): ConnectionStatus {
-    return this.workers.get(twitchUserId)?.status ?? "disconnected";
+    const state = this.workers.get(twitchUserId);
+    return state?.chatOverloaded && state.status === "connected"
+      ? "error"
+      : (state?.status ?? "disconnected");
   }
 
   diagnosticsForUser(twitchUserId: string): TwitchConnectionDiagnostics {
     const state = this.workers.get(twitchUserId);
     return {
-      status: state?.status ?? "disconnected",
+      status: this.statusForUser(twitchUserId),
       activeSubscriptions: state?.subscriptionActive ? 1 : 0,
       lastNotificationAt: state?.lastNotificationAt ?? null,
+      chat: {
+        inFlight: state?.chatInFlight ?? 0,
+        rejected: state?.chatRejected ?? 0,
+        overloaded: state?.chatOverloaded ?? false,
+      },
     };
   }
 
@@ -149,14 +169,30 @@ export class TwitchConnectionManager {
     const state = this.workers.get(twitchUserId);
     return {
       provider: "twitch",
-      state: this.toRealtimeStatus(state?.status ?? "disconnected"),
+      state: this.toRealtimeStatus(this.statusForUser(twitchUserId)),
       since: state?.statusSince ?? null,
     };
   }
 
   async startAll(): Promise<void> {
-    const userIds = await this.sessions.listActiveTwitchUserIds();
-    await Promise.all(userIds.map((userId) => this.startUser(userId)));
+    if (this.starting || this.shutdownStarted) return;
+    this.starting = true;
+    try {
+      const userIds = await this.sessions.listActiveTwitchUserIds();
+      let cursor = 0;
+      await Promise.all(
+        Array.from({ length: Math.min(4, userIds.length) }, async () => {
+          while (cursor < userIds.length && !this.shutdownStarted) {
+            const userId = userIds[cursor++]!;
+            const existing = this.workers.get(userId);
+            // Reconciliation must not reset a worker's outage backoff or retry budget.
+            if (!existing || existing.stopped) await this.startUser(userId);
+          }
+        }),
+      );
+    } finally {
+      this.starting = false;
+    }
   }
 
   async startUser(twitchUserId: string): Promise<void> {
@@ -173,6 +209,10 @@ export class TwitchConnectionManager {
     // stopUser synchronously invalidates the old worker before any new work starts.
     if (previous) void this.stopUser(twitchUserId);
     const state: WorkerState = {
+      chatInFlight: 0,
+      chatRejected: previous?.chatRejected ?? 0,
+      chatOverloaded: false,
+      chatOverloadTimer: null,
       status: "disconnected",
       statusSince: new Date(this.now()).toISOString(),
       socket: null,
@@ -228,6 +268,9 @@ export class TwitchConnectionManager {
     this.clearTimer(state.reconnectTimer);
     this.clearTimer(state.validationTimer);
     this.clearTimer(state.handoffTimer);
+    this.clearTimer(state.chatOverloadTimer);
+    state.chatOverloadTimer = null;
+    state.chatOverloaded = false;
     state.reconnectTimer = null;
     state.validationTimer = null;
     state.handoffTimer = null;
@@ -585,29 +628,65 @@ export class TwitchConnectionManager {
     state: WorkerState,
   ): Promise<void> {
     if (!this.actorLimiter.take(envelope.actorTwitchId)) return;
-    const membership = await this.rounds.findActiveSessionForBroadcaster(
-      envelope.originBroadcasterId,
-    );
-    if (!membership || state.stopped || this.shutdownStarted) return;
-    const canonicalMessageId =
-      envelope.sourceMessageId ?? envelope.twitchMessageId;
-    await this.rounds.applyInput({
-      sessionId: membership.sessionId,
-      inputId: `twitch:${envelope.originBroadcasterId}:${canonicalMessageId}`,
-      eventSubMessageId: envelope.eventSubMessageId,
-      actorTwitchId: envelope.actorTwitchId,
-      text: envelope.text,
-      source: "twitch",
-      channelId: envelope.originBroadcasterId,
-      ...(state.leaderOwnerId && state.leaderEpoch !== null
-        ? {
-            leaderOwnerId: state.leaderOwnerId,
-            leaderEpoch: state.leaderEpoch,
+    const release = this.chatWork.acquire(envelope.originBroadcasterId);
+    if (!release) {
+      state.chatRejected++;
+      if (!state.chatOverloaded) {
+        state.chatOverloaded = true;
+        state.statusSince = new Date(this.now()).toISOString();
+        state.chatOverloadTimer = setTimeout(() => {
+          state.chatOverloadTimer = null;
+          if (
+            state.chatInFlight === 0 &&
+            this.isCurrentWorker(envelope.broadcasterId, state)
+          ) {
+            state.chatOverloaded = false;
+            state.statusSince = new Date(this.now()).toISOString();
+            this.notifyStatus(envelope.broadcasterId, state);
           }
-        : {}),
-      originBroadcasterId: envelope.originBroadcasterId,
-      sourceMessageId: canonicalMessageId,
-    });
+        }, 1_000);
+        state.chatOverloadTimer.unref?.();
+        this.notifyStatus(envelope.broadcasterId, state);
+      }
+      return;
+    }
+    state.chatInFlight++;
+    try {
+      const membership = await this.rounds.findActiveSessionForBroadcaster(
+        envelope.originBroadcasterId,
+      );
+      if (!membership || state.stopped || this.shutdownStarted) return;
+      const canonicalMessageId =
+        envelope.sourceMessageId ?? envelope.twitchMessageId;
+      await this.rounds.applyInput({
+        sessionId: membership.sessionId,
+        inputId: `twitch:${envelope.originBroadcasterId}:${canonicalMessageId}`,
+        eventSubMessageId: envelope.eventSubMessageId,
+        actorTwitchId: envelope.actorTwitchId,
+        text: envelope.text,
+        source: "twitch",
+        channelId: envelope.originBroadcasterId,
+        ...(state.leaderOwnerId && state.leaderEpoch !== null
+          ? {
+              leaderOwnerId: state.leaderOwnerId,
+              leaderEpoch: state.leaderEpoch,
+            }
+          : {}),
+        originBroadcasterId: envelope.originBroadcasterId,
+        sourceMessageId: canonicalMessageId,
+      });
+    } finally {
+      release();
+      state.chatInFlight--;
+      if (state.chatOverloaded && state.chatInFlight === 0) {
+        state.chatOverloaded = false;
+        this.clearTimer(state.chatOverloadTimer);
+        state.chatOverloadTimer = null;
+        state.statusSince = new Date(this.now()).toISOString();
+        if (this.isCurrentWorker(envelope.broadcasterId, state))
+          this.notifyStatus(envelope.broadcasterId, state);
+      }
+    }
   }
 
   private scheduleReconnect(twitchUserId: string, state: WorkerState): void {
@@ -666,10 +745,14 @@ export class TwitchConnectionManager {
     if (state.status === status) return;
     state.status = status;
     state.statusSince = new Date(this.now()).toISOString();
+    this.notifyStatus(twitchUserId, state);
+  }
+
+  private notifyStatus(twitchUserId: string, state: WorkerState): void {
     try {
       this.onStatusChange?.(twitchUserId, {
         provider: "twitch",
-        state: this.toRealtimeStatus(status),
+        state: this.toRealtimeStatus(this.statusForUser(twitchUserId)),
         since: state.statusSince,
       });
     } catch {

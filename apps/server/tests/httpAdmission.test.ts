@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import { Writable } from "node:stream";
+import { setTimeout as delay } from "node:timers/promises";
 import { describe, expect, it } from "vitest";
 import {
   createAdmission,
@@ -9,6 +10,111 @@ import {
 } from "../src/ops/httpPolicy.js";
 
 describe("HTTP admission and safe diagnostics", () => {
+  it("bounds readiness database probes independently of ordinary API work", async () => {
+    const app = Fastify();
+    registerHttpAdmission(app);
+    let calls = 0;
+    let release!: () => void;
+    const held = new Promise<void>((r) => {
+      release = r;
+    });
+    app.get("/health/ready", async () => {
+      calls++;
+      await held;
+      return { status: "ready" };
+    });
+    app.get("/health/live", () => ({ status: "ok" }));
+    const requests = [
+      app.inject("/health/ready"),
+      app.inject("/health/ready"),
+    ].map((x) => x.then((x) => x));
+    try {
+      while (calls < 2) await delay(1);
+      const response = await Promise.race([
+        app.inject("/health/ready"),
+        delay(100, null),
+      ]);
+      expect(response?.statusCode).toBe(503);
+      expect(calls).toBe(2);
+      expect((await app.inject("/health/live")).statusCode).toBe(200);
+    } finally {
+      release();
+      await Promise.all(requests);
+      await app.close();
+    }
+  });
+  it("rejects excess concurrent API work before the handler and recovers capacity", async () => {
+    const app = Fastify();
+    registerHttpAdmission(app, { maxInFlight: 2 });
+    let entered = 0;
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    app.get("/api/slow", async () => {
+      entered++;
+      await held;
+      return { ok: true };
+    });
+    app.get("/health/live", () => ({ ok: true }));
+    const requests = [app.inject("/api/slow"), app.inject("/api/slow")].map(
+      (x) => x.then((x) => x),
+    );
+    try {
+      while (entered < 2) await delay(1);
+      for (let i = 0; i < 2; i++) {
+        const rejected = await Promise.race([
+          app.inject("/api/slow"),
+          delay(100, null),
+        ]);
+        expect(rejected?.statusCode).toBe(503);
+        expect(rejected?.json()).toEqual({ error: "server_busy" });
+        expect(rejected?.headers["retry-after"]).toBe("1");
+      }
+      expect(entered).toBe(2);
+      expect((await app.inject("/health/live")).statusCode).toBe(200);
+    } finally {
+      release();
+      await Promise.all(requests);
+      await app.close();
+    }
+  });
+
+  it("releases admitted capacity after body rejection and handler failure", async () => {
+    const app = Fastify({ bodyLimit: HTTP_BODY_LIMIT });
+    registerHttpAdmission(app, { maxInFlight: 1 });
+    let fail = true;
+    app.post("/api/work", () => {
+      if (fail) {
+        fail = false;
+        throw new Error("fixture failure");
+      }
+      return { ok: true };
+    });
+    try {
+      expect(
+        (
+          await app.inject({
+            method: "POST",
+            url: "/api/work",
+            payload: "x".repeat(HTTP_BODY_LIMIT + 1),
+            headers: { "content-type": "application/json" },
+          })
+        ).statusCode,
+      ).toBe(413);
+      expect(
+        (await app.inject({ method: "POST", url: "/api/work", payload: {} }))
+          .statusCode,
+      ).toBe(500);
+      expect(
+        (await app.inject({ method: "POST", url: "/api/work", payload: {} }))
+          .statusCode,
+      ).toBe(200);
+    } finally {
+      await app.close();
+    }
+  });
+
   it("rejects excess OAuth requests before provider work despite spoofed forwarding headers", async () => {
     let calls = 0;
     let now = 1000;

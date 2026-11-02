@@ -9,6 +9,12 @@ Frontend requests and dispositions are in [FRONTEND_CONTRACT_REQUESTS.md](FRONTE
 
 ## Current integration context
 
+### Resource admission and overload recovery (2 November 2026, 12:28 UTC)
+
+API overload now returns `503 {"error":"server_busy"}` with `Retry-After: 1` before expensive work; existing 429/CSRF/idempotency rules remain. Readiness has its own bounded database budget. Socket join/control/command admission uses the existing `RATE_LIMITED` result; clients should retry with backoff and the same mutation key. No game command or proof schema changed.
+
+Real-manager diagnostics add optional `twitch.chat: {inFlight,rejected,overloaded}`. Budget-rejected Twitch commands are not processed or durably queued. Public status is temporarily `error`/`OFFLINE` during overload and automatically recovers without new OAuth; the rejected command needs a fresh Twitch send after recovery. Counts are operational process-local data, not contribution receipts. Idle outbox polling can add up to one second before first discovery; normal active cadence and both delta/snapshot event formats remain compatible. See [resource limits and evidence](../operations/BACKEND_RESOURCE_LIMITS.md). Haiku owns overload feedback/retry UX; these tests do not certify it.
+
 ### Simple setup, session recovery, and REQ-FE-006 (2 November 2026, 11:31 UTC)
 
 Implemented additive backend support for Haiku's simpler host flow: authenticated `GET /api/sessions` recovers bounded participant metadata after refresh/login, including an explicit `needsRejoin` hint for a previously accepted revoked partner. This discovery does not restore consent or snapshot access. `POST /api/coops/invitations` now accepts a Twitch username as an alternative to the existing numeric ID, resolves it server-side after ownership checks, and returns the agreed `/coop/invite?invite=<id>#token=<opaque>` link. The bearer is returned only at creation; named-invitee acceptance remains replay-safe rather than strictly single use. Existing mutation, consent, idempotency, and team authorization rules remain in force.

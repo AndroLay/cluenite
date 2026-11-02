@@ -1,7 +1,7 @@
 import { config as loadDotEnv } from "dotenv";
 import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
-import { Pool } from "pg";
+import { createDatabasePool } from "./db/pool.js";
 import { Server as SocketServer } from "socket.io";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -45,15 +45,15 @@ const app = Fastify({
   logger: safeLoggerOptions,
   bodyLimit: HTTP_BODY_LIMIT,
   trustProxy: false,
+  disableRequestLogging: true,
+  requestTimeout: 15_000,
+  keepAliveTimeout: 5_000,
+  maxRequestsPerSocket: 1_000,
 });
+app.server.headersTimeout = 10_000;
+app.server.maxConnections = 512;
 registerHttpAdmission(app);
-const database = new Pool({
-  connectionString: config.databaseUrl,
-  max: 10,
-  connectionTimeoutMillis: 5_000,
-  idleTimeoutMillis: 30_000,
-  query_timeout: 15_000,
-});
+const database = createDatabasePool(config.databaseUrl, app.log);
 const rounds = new PostgresRoundRepository(
   database,
   Date.now,
@@ -61,7 +61,13 @@ const rounds = new PostgresRoundRepository(
     ? (userId) => twitchConnections?.statusForUser(userId) === "connected"
     : undefined,
 );
-const sockets = new SocketServer(app.server, { path: "/socket.io" });
+const sockets: SocketServer = new SocketServer(app.server, {
+  path: "/socket.io",
+  maxHttpBufferSize: HTTP_BODY_LIMIT,
+  connectTimeout: 10_000,
+  allowRequest: (_request, done) =>
+    done(null, sockets.engine.clientsCount < 256),
+});
 const authConfigured = Boolean(
   config.sessionHashKey && config.dataEncryptionKey && config.overlayHashKey,
 );
