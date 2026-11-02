@@ -32,6 +32,8 @@ Database integration tests require `DATABASE_URL` to select the local database n
 
 Run `npm run build` before the full `npm test` suite. Its HTTP runtime fixture launches an owned server on a random port, checks readiness and the current built web assets, then stops that process before dropping its temporary schema. It does not stop a shared development server. GitHub CI runs the build before the full PostgreSQL suite.
 
+If the selected local API uses the real Twitch adapter, stop that owned process before the full database suite and restore it afterwards. Its EventSub leader holds a database-wide PostgreSQL advisory lock; temporary schemas do not isolate that lock, so the election fixture cannot acquire it while the API is running. Never stop an unrelated process to run tests. See the [server verification guide](apps/server/README.md#verification).
+
 ## Documentation maintenance
 
 Update [docs/STATUS.md](docs/STATUS.md) for current implementation and fresh verification evidence. Update the relevant application/package guide and API handoff when behavior changes. Keep screenshots and old test results dated; a historical passing result is not a current run.

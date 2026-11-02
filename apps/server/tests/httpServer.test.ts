@@ -3,6 +3,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { once } from "node:events";
 import { existsSync } from "node:fs";
+import { unlink, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { createServer } from "node:net";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -203,6 +204,21 @@ describeWithDatabase("built application HTTP runtime", () => {
       expect(response.headers.get("content-type"), stylesheet).toContain(
         "text/css",
       );
+    }
+  });
+
+  it("serves rebuilt assets added after the HTTP process starts", async () => {
+    const filename = `backend-http-${randomBytes(12).toString("hex")}.css`;
+    const assetPath = resolve(projectRoot, "apps/web/dist/assets", filename);
+    const contents = ":root { --backend-asset-probe: 1; }\n";
+    await writeFile(assetPath, contents, { flag: "wx" });
+    try {
+      const response = await fetch(`${origin}/assets/${filename}`);
+      expect(response.status).toBe(200);
+      expect(response.headers.get("content-type")).toContain("text/css");
+      expect(await response.text()).toBe(contents);
+    } finally {
+      await unlink(assetPath);
     }
   });
 });

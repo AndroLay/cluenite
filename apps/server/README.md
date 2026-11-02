@@ -99,15 +99,20 @@ For the current predeploy implementation, production preflight, HTTP admission, 
 
 Run `npm run build` before `npm test`, which includes unit tests plus PostgreSQL integration tests. The HTTP fixture starts an owned random-port server and checks database readiness, signed-out rejection, English SPA deep links, current CSS, and JSON 404 responses for missing API, health, and asset paths. `GET /api` does not fall back to the HTML application.
 
+Static assets are resolved at request time, so a frontend rebuild can add new hashed filenames without restarting the API. The HTTP regression fixture creates and removes only its own uniquely named asset after startup. Missing assets retain JSON 404 responses; they do not receive the application shell. This follows the plugin's [wildcard routing behavior](https://github.com/fastify/fastify-static#wildcard).
+
+Before the full database suite, stop only the selected, owned API if it uses the real Twitch adapter, then restore it afterwards. PostgreSQL advisory locks are shared across schemas in a database: a live EventSub leader prevents the isolated election fixture from acquiring the same lock. The suite does not stop development servers automatically. Schema isolation still protects application data; it does not partition advisory locks.
+
 The current
 backend covers the deterministic Q01 Quick Case proof path, M01 Mystery Live
 event order and verdict checks, and C01's two-broadcaster scan, verify, shared
 evidence, and joint proof. Database
 integration tests create a unique temporary schema inside the local `cluenite`
 database and drop only that schema on completion. The fixture rejects remote hosts and other database names. The tests use mocked Twitch
-HTTP and WebSocket boundaries; a real broadcaster login, real chat delivery,
-OBS gameplay, Render deployment, and player playtest still need separate
-verification.
+HTTP and WebSocket boundaries. Real broadcaster OAuth, authenticated host/overlay
+APIs, and EventSub subscription recovery were verified separately on 2 November;
+real chat delivery, token refresh/revocation, two-channel co-op, OBS gameplay,
+Render deployment, and player playtests remain separate acceptance gates.
 
 The [backend release record](../../docs/operations/BACKEND_RELEASE_2026-11-02.md)
 tracks the private source repository, Render target, required credentials,

@@ -233,7 +233,8 @@ app.get("/health/ready", async (_request, reply) => {
 });
 
 if (existsSync(resolve(webRoot, "index.html"))) {
-  await app.register(fastifyStatic, { root: webRoot, wildcard: false });
+  // Resolve rebuilt asset hashes at request time instead of only at startup.
+  await app.register(fastifyStatic, { root: webRoot, wildcard: true });
   // Deep links such as /play or /dashboard are client-side routes, so they get the app shell.
   // API and health paths and requests for missing files keep a JSON 404.
   app.setNotFoundHandler(async (request, reply) => {

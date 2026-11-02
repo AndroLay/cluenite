@@ -2,35 +2,42 @@
 
 **Owner:** integration operator and consenting streamer account owners.
 
-**Reconciled on 2 November 2026:** backend source and synthetic-provider tests pass. Real Twitch and OBS acceptance remain open. The current user scope stops before deployment. See the [predeploy guide](../operations/BACKEND_PREDEPLOY_2026-11-02.md).
+**Reconciled on 2 November 2026:** backend source tests, real broadcaster OAuth, authenticated HTTP/Socket.IO/overlay checks, and an enabled real EventSub subscription pass. Real chat-to-gameplay, two-channel co-op, provider refresh/revocation/handoff, and actual OBS acceptance remain open. The current user scope stops before deployment. See the [predeploy guide](../operations/BACKEND_PREDEPLOY_2026-11-02.md).
 
 ## Current local preparation
 
-- The ignored root `.env` now contains three independently generated application security keys. Development configuration parsing and an AES-GCM round trip pass. Existing nonempty settings were preserved. A prior read-only query found zero stored Twitch accounts in the local application database.
-- `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, and `TWITCH_REDIRECT_URI` remain unset. Production preflight correctly fails; keys alone do not enable real OAuth.
-- Zen processes are running, but both supported control surfaces report unavailable native/browser hosts. No Twitch app or provider credential was created. The owner selected reconnecting Zen.
+- The ignored root `.env` contains three independently generated application security keys. Development parsing, an AES-GCM round trip, and later loading of the real encrypted account credentials pass. Existing settings were preserved. The earlier zero-account observation predates the now-completed OAuth consent.
+- The owner registered Cluenite and saved `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, and `TWITCH_REDIRECT_URI` in the ignored `.env`. Development parsing passes. Real Twitch app-token issuance, client validation, and temporary-token revocation each returned 200; this is not broadcaster consent.
+- The owner completed Authorize in the main Zen profile after the local login opened there. The managed bridge remains unavailable, and the Windows native provider cannot focus windows. The isolated headless proof is separate and did not supply the real login. The owner's latest instruction requires background work; browser input/new-tab actions have stopped.
+- The real browser's `/api/me` and diagnostics calls pass. A separate background provider check validates the stored user token, expected account/profile, required chat-read scope, and one matching enabled chat subscription. No browser cookies or provider tokens were exported to reports.
+- All 21 authenticated host/overlay browser checks pass. The newly created operator round was stopped in `CANCELLED`, its overlay credential was revoked, and its sockets closed. These checks send no Twitch chat and do not verify OBS desktop rendering.
 - No consenting partner channel is selected. No OBS process was observed during the presence check. Real two-channel and OBS acceptance remain open.
-- No shared API process was restarted. Saving `.env` does not update a running server.
+- The previously owned local API was restarted to load the saved credentials; Vite was preserved. Readiness, public web, case proxy, unauthenticated identity rejection, and the OAuth-start redirect pass. The runtime record is `.cache/twitch-real-20261102-053344.json` and must be rechecked before any later process operation.
+- Later background-only verification fixed startup-only asset registration. The current local suite passes 111 tests in 23 files with the selected owned real-adapter API stopped temporarily for database-wide advisory-lock isolation and restored afterwards. At 07:58 UTC, 46 integration checks pass, including exact built asset delivery and 16 public page/viewport checks across API/Vite without overflow or uncaught browser errors. `/guide` header links measure at least 44px at 390px; other navigation targets are not certified. The latest runtime observation is `.cache/background-api-current-20261102.json`, not the earlier PID record.
+- Stored authorization and one enabled matching subscription recover after the API restarts. Headless callback failure inputs are synthetic and separate from actual provider denial/revocation. The empty headless context was closed; the main Zen profile was untouched. Maintenance preview has `applied: false` and all eligible counts zero.
+- Production preflight now has an empty missing-variable list and correctly fails on the local HTTP origin. A real production HTTPS origin/callback is still required later.
 
 ## Select the local target and register Twitch
 
-- [ ] Select the browser origin and API port using [local setup](../../HOW_TO_RUN.md). `PUBLIC_ORIGIN` must exactly match the browser origin. Vite must proxy `/api` and `/socket.io` to the same API process.
-- [ ] Verify that process serves the current source/build, database readiness, and current assets. Prefer an owned process on a free port; do not terminate a shared listener or assume it reloaded configuration.
-- [ ] Select the exact callback for that process. The default split-origin setup documents `http://localhost:10000/api/auth/twitch/callback`; a callback through Vite instead needs its exact browser-origin URL and working proxy. These are different registrations. Do not invent a future Render hostname.
-- [ ] Follow Twitch's [app registration instructions](https://dev.twitch.tv/docs/authentication/register-app) in the selected, signed-in Zen account. Email verification, 2FA, or an interactive challenge may require the owner to act.
-- [ ] Inspect existing registrations before creating one. For a new app, use an available Cluenite name, the selected callback, and the appropriate category. Select a confidential/server client if offered.
-- [ ] Obtain that app's client ID and initial secret. Do not replace an existing app's secret without checking its use: Twitch invalidates the previous secret.
-- [ ] Save the ID, secret, and callback together in the ignored `.env`. Never print them or include them in chat, logs, screenshots, or Git. Preserve the three application keys already generated.
-- [ ] Parse development configuration and restart only the selected, owned API process. Keep `TWITCH_ADAPTER=twitch`; there is no login bypass.
-- [ ] Confirm outbound HTTPS to `id.twitch.tv` and `api.twitch.tv`, and WSS to `eventsub.wss.twitch.tv`, from this target.
+- [x] Select the browser origin and API port using [local setup](../../HOW_TO_RUN.md): `http://localhost:5173` and API port 10000. Vite targets the same API; case proxy and signed-in Socket.IO checks pass within the boundaries below.
+- [x] Verify the selected owned runtime, database readiness, and current built HTML/JavaScript/CSS. New hashed assets now resolve after rebuilds; exact served/disk comparisons and the HTTP regression pass. Recheck ownership before any future process operation.
+- [x] Select the exact local callback `http://localhost:10000/api/auth/twitch/callback`. A callback through Vite instead would need its exact browser-origin URL and registration. Do not invent a future Render hostname.
+- [x] Follow Twitch's [app registration instructions](https://dev.twitch.tv/docs/authentication/register-app): the owner completed registration and supplied the resulting credentials privately.
+- Registration was completed by the owner. The agent did not create a second application or retrospectively claim an inventory of other registrations. No further app creation is required for the selected local integration.
+- [x] Obtain that app's client ID and secret; Twitch accepted them in the app-token probe. No existing secret was rotated by the agent.
+- [x] Save the ID, secret, and callback together in the ignored `.env`, preserving the three application keys. No values were printed or included in chat, logs, screenshots, or Git.
+- [x] Parse development configuration and restart only the selected, owned API process with `TWITCH_ADAPTER=twitch` and developer controls disabled. There is no login bypass.
+- [x] Confirm outbound transport reachability: `id.twitch.tv` token/validation/cleanup requests return 200, an unauthenticated `api.twitch.tv` request returns the expected 401, and `eventsub.wss.twitch.tv` sends a connected welcome. The probe socket was closed without a subscription; authenticated EventSub/chat acceptance remains below.
 
 ## OAuth and one-channel gameplay
 
-- [ ] Open `/api/auth/twitch/start` from the selected browser origin. Confirm Twitch identifies the intended app and requests `user:read:chat` access.
-- [ ] Consent as the intended broadcaster. Browser navigation returns to `/connect?result=connected`; the HttpOnly session cookie and authenticated `GET /api/me` must agree. The result query alone never proves sign-in.
-- [ ] Check denied consent: HTML navigation returns to `/connect?result=denied`. Other fixed browser outcomes are `invalid`, `state_rejected`, `unavailable`, and `exchange_failed`; JSON clients retain JSON errors. Haiku must wire result copy without treating it as authentication.
-- [ ] Create and start Q01 through the authenticated API/host controls. Creation leaves it `READY`, not `ACTIVE`.
-- [ ] Inspect `/api/ops/diagnostics` for connection/subscription state. A connected label alone is not proof of real chat delivery.
+- [x] Complete the browser consent step at `http://localhost:5173/api/auth/twitch/start` in the main Zen profile. The owner clicked Authorize; Twitch's token validation confirms the configured client, intended account, and `user:read:chat`.
+- [x] Verify actual sign-in after consent: active account/session rows are stored, the browser returns to Cluenite, and its cookie-authenticated `GET /api/me` returns 200. The result query alone was not used as proof.
+- [x] Check the running local callback with synthetic `denied`, `invalid`, and `state_rejected` inputs: HTML redirects, legacy JSON errors, state-cookie clearing, and privacy headers pass. Headless denied-result navigation leaves the browser signed out. Source tests separately cover `unavailable` and `exchange_failed`; Haiku owns result copy and must not infer authentication from the query.
+- [ ] Exercise owner-denied consent at the actual Twitch prompt when main-profile interaction is authorized. The synthetic callback probe is not evidence of that external action.
+- [x] Create/start Q01 through authenticated APIs; creation is `READY`. The 21-check run also validates CSRF, creation/control idempotency, Pause/Resume/Stop, host/overlay Socket.IO, read-only overlay boundaries, and revocation. Its own test round and credential were cleaned up.
+- [x] Inspect authenticated diagnostics: database healthy, EventSub connected, one active subscription. Independent official Twitch listing confirms one matching enabled WebSocket chat subscription. A connected subscription is not proof of real chat delivery.
+- [x] Restore the owned API after exclusive source tests and confirm readiness, stored token/profile/scope, and exactly one enabled matching real chat subscription without reauthorizing or rotating credentials. This is local restart/subscription recovery.
 - [ ] With permission for this exact channel, send `!look CAM`, `!look SCHEDULE`, and `!link CAM_R07 SCHEDULE_R07` in real chat. Confirm persisted revisions and authorized Socket.IO updates. Submit a verdict only after proof exists.
 - [ ] Correlate a provider message ID with one stored receipt/revision. Replaying that same ID is a controlled harness test; sending another chat message creates a different provider ID and does not reproduce duplicate delivery.
 - [ ] Observe an actual refresh and a later real command. Observe a provider reconnect/handoff if it occurs; do not label a local simulation as provider evidence. See Twitch's [WebSocket lifecycle](https://dev.twitch.tv/docs/eventsub/handling-websocket-events/).
@@ -58,10 +65,10 @@ Use the exact [API and Socket.IO contracts](BACKEND_CONTRACTS.md). Frontend stat
 
 ## Evidence and completion
 
-- [ ] Record the source commit, local origin/ports, timestamps, readiness response, and actual executed checks. Label synthetic data explicitly.
-- [ ] Retain only redacted identity results, chat receipt/revision correlation, team visibility, and actual OBS observations. Never retain secrets, authorization codes, cookies, or overlay credentials in reports.
-- [ ] Keep unexecuted/failed checks open with a concrete reason. Backend tests, fixtures, previews, and configuration validation do not replace real consent or OBS acceptance.
-- [ ] Hand signed-in frontend findings to Haiku. Do not mark unfinished controls complete because their endpoints pass.
+- [x] Record the backend source change, local origin/ports, timestamps, readiness, actual checks, and evidence paths in [backend progress](BACKEND_PROGRESS.md). Git history identifies the published source; label synthetic inputs explicitly.
+- [x] Retain only sanitized results for executed checks. No chat receipt correlation, real team visibility, or OBS observation is claimed without execution. Reports contain no secrets, authorization codes, cookies, or overlay credentials.
+- [x] Keep unexecuted/failed checks open with a concrete reason. Backend tests, fixtures, previews, and configuration validation do not replace real consent or OBS acceptance.
+- [x] Publish signed-in findings and the later static-delivery/headless observation in the [backend handoff](BACKEND_CONTRACTS.md#background-only-integration-handoff-2-november-2026-0758-utc). Endpoint success does not complete Haiku's interface or visual acceptance.
 
 ## Later deployment-only gates
 
