@@ -110,9 +110,11 @@ evidence, and joint proof. Database
 integration tests create a unique temporary schema inside the local `cluenite`
 database and drop only that schema on completion. The fixture rejects remote hosts and other database names. The tests use mocked Twitch
 HTTP and WebSocket boundaries. Real broadcaster OAuth, authenticated host/overlay
-APIs, and EventSub subscription recovery were verified separately on 2 November;
-real chat delivery, token refresh/revocation, two-channel co-op, OBS gameplay,
-Render deployment, and player playtests remain separate acceptance gates.
+APIs, one operator-triggered token refresh, and refreshed-credential EventSub
+recovery were verified separately on 2 November. Natural-expiry scheduling,
+real post-refresh chat/proof, account revocation/reauthorization, two-channel
+co-op, OBS gameplay, Render deployment, and player playtests remain separate
+acceptance gates.
 
 The [backend release record](../../docs/operations/BACKEND_RELEASE_2026-11-02.md)
 tracks the private source repository, Render target, required credentials,

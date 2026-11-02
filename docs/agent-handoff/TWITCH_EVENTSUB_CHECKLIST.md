@@ -2,7 +2,7 @@
 
 **Owner:** integration operator and consenting streamer account owners.
 
-**Reconciled on 2 November 2026:** backend source tests, real broadcaster OAuth, authenticated HTTP/Socket.IO/overlay checks, and an enabled real EventSub subscription pass. Real chat-to-gameplay, two-channel co-op, provider refresh/revocation/handoff, and actual OBS acceptance remain open. The current user scope stops before deployment. See the [predeploy guide](../operations/BACKEND_PREDEPLOY_2026-11-02.md).
+**Reconciled on 2 November 2026:** backend source tests, real broadcaster OAuth, authenticated HTTP/Socket.IO/overlay checks, one real operator-triggered refresh, and refreshed-credential subscription recovery pass. Real chat-to-gameplay after refresh, two-channel co-op, provider revocation/reauthorization/handoff, and actual OBS acceptance remain open. The current user scope stops before deployment. See the [predeploy guide](../operations/BACKEND_PREDEPLOY_2026-11-02.md).
 
 ## Current local preparation
 
@@ -40,7 +40,8 @@
 - [x] Restore the owned API after exclusive source tests and confirm readiness, stored token/profile/scope, and exactly one enabled matching real chat subscription without reauthorizing or rotating credentials. This is local restart/subscription recovery.
 - [ ] With permission for this exact channel, send `!look CAM`, `!look SCHEDULE`, and `!link CAM_R07 SCHEDULE_R07` in real chat. Confirm persisted revisions and authorized Socket.IO updates. Submit a verdict only after proof exists.
 - [ ] Correlate a provider message ID with one stored receipt/revision. Replaying that same ID is a controlled harness test; sending another chat message creates a different provider ID and does not reproduce duplicate delivery.
-- [ ] Observe an actual refresh and a later real command. Observe a provider reconnect/handoff if it occurs; do not label a local simulation as provider evidence. See Twitch's [WebSocket lifecycle](https://dev.twitch.tv/docs/eventsub/handling-websocket-events/).
+- [x] Complete one real operator-triggered refresh through the application API client and encrypted version-checked store. Ten checks confirm replacement-token persistence, unchanged identity/scope, and preserved browser sessions. After a hidden API reload, the enabled subscription is newly created after that restart. No new consent, Client Secret/key change, or account revocation occurred.
+- [ ] Process a real command after refresh and correlate its persisted proof/update. Natural-expiry scheduling and a provider-directed reconnect/handoff have not been observed; do not label operator-triggered refresh/restart as those events. See Twitch's [WebSocket lifecycle](https://dev.twitch.tv/docs/eventsub/handling-websocket-events/).
 - [ ] After active test sessions are ready to be paused, exercise the authorized disconnect/revoke flow. Confirm local sessions lose access, the worker stops, and active games pause. Reauthorize before other signed-in checks.
 
 ## Two-channel co-op
