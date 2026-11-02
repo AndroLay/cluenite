@@ -20,7 +20,7 @@ The user's current request authorizes documentation and language changes across 
   - Six Twitch status labels and the document's `lang` attribute still use Indonesian.
   - Older run instructions and prompts describe a completed design debate; handoff files contain superseded observations.
 - [x] Establish the current documentation index, English language policy, source precedence, status, and run instructions.
-  - Files: `AGENTS.md`, `README.md`, `HOW_TO_RUN.md`, `CONTRIBUTING.md`, `docs/README.md`, `docs/STATUS.md`, `docs/reference/README.md`, `docs/architecture/DECISIONS.md`.
+  - Files: `AGENTS.md`, `README.md`, `docs/development/local-setup.md`, `docs/development/contributing.md`, `docs/README.md`, `docs/STATUS.md`, `docs/reference/README.md`, `docs/architecture/DECISIONS.md`.
 - [x] Reconcile package/application guides, agent prompts, handoffs, and historical document boundaries.
   - Preserve old progress as dated evidence and link each superseded record to the current status.
   - Keep frozen source content byte-for-byte unchanged and explain implementation differences in the reference index.

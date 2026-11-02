@@ -1,40 +1,58 @@
-# Documentation map
+# Cluenite documentation
 
-**Last synchronized:** 2 November 2026 against the local working tree based on `c320a9b`. Project documentation and development use English.
+Use this page to find the current guide. [The project README](../README.md) introduces the product; [status](STATUS.md) separates implementation from dated verification and remaining acceptance.
 
-## Current guides
+**Last synchronized:** 3 November 2026 WITA. Documentation and authored development material use English. The immersive frontend and scoped backend integration are included in the [current release](operations/FRONTEND_RELEASE_2026-11-03.md); the record distinguishes source preparation, CI and actual deployment. Production Twitch acceptance remains pending. See [frontend progress](agent-handoff/FRONTEND_PROGRESS.md) for dated implementation scope.
 
-| Document                                                                                               | Use it for                                                                             |
-| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
-| [Project overview](../README.md)                                                                       | Product, runtime cases, stack, and workspace.                                          |
-| [Local run guide](../HOW_TO_RUN.md)                                                                    | Database, environment, ports, samples, and real host setup.                            |
-| [Development guide](../CONTRIBUTING.md)                                                                | Language policy, boundaries, checks, and documentation maintenance.                    |
-| [Implementation status](STATUS.md)                                                                     | What exists, fresh versus historical evidence, and remaining gaps.                     |
-| [Architecture decisions](architecture/DECISIONS.md)                                                    | Current technical choices and source precedence.                                       |
-| [Web product](../apps/web/PRODUCT.md) and [design](../apps/web/DESIGN.md)                              | Actual routes, samples, visual direction, and interface limits.                        |
-| [Server guide](../apps/server/README.md)                                                               | Backend operations and API overview.                                                   |
-| [Backend release record](operations/BACKEND_RELEASE_2026-11-02.md)                                     | Release checks, private GitHub source, Render target, and blockers.                    |
-| [Backend predeploy guide](operations/BACKEND_PREDEPLOY_2026-11-02.md)                                  | Current OAuth/HTTP behavior, preflight, retention, deletion, and final backend checks. |
-| [API/realtime contracts](agent-handoff/BACKEND_CONTRACTS.md)                                           | Implemented HTTP, Socket.IO, snapshot, and command contracts.                          |
-| [External verification checklist](agent-handoff/TWITCH_EVENTSUB_CHECKLIST.md)                          | Evidence still needed from real Twitch, OBS, Render, and players.                      |
-| [Collaboration protocol](../TEAM_PROTOCOL.md) and [integration runbook](../INTEGRATION_AND_RUNBOOK.md) | Ownership, handoff, integration, and acceptance.                                       |
+## Start here
 
-## Authority and historical material
+| Your task                            | Read                                                                                                                                                              |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Run the application                  | [Local setup](development/local-setup.md)                                                                                                                         |
+| Make a change                        | [Development guide](development/contributing.md), [collaboration](development/collaboration.md)                                                                   |
+| Find a file or understand the layout | [Repository map](repository-map.md)                                                                                                                               |
+| Connect a frontend interaction       | [Frontend/backend integration](agent-handoff/FRONTEND_BACKEND_INTEGRATION.md), [API/realtime contracts](agent-handoff/BACKEND_CONTRACTS.md)                       |
+| Refine the interface                 | [Frontend target](design/frontend-target/README.md), [web product](../apps/web/PRODUCT.md), [design rules](../apps/web/DESIGN.md)                                 |
+| Assess what has been checked         | [Status](STATUS.md), [evidence index](evidence/README.md)                                                                                                         |
+| Prepare operations                   | [Integration runbook](operations/integration-runbook.md), [server guide](../apps/server/README.md), [predeploy guide](operations/BACKEND_PREDEPLOY_2026-11-02.md) |
+| Prepare a recording                  | [Demo video plan](demo/DEMO_VIDEO_PLAN.md)                                                                                                                        |
 
-The [frontend development target](design/frontend-target/README.md) maps all eight user-provided images to routes, source files, milestones, and acceptance. Start with the shared visual system and public pages, as selected by the user. [Preserved image originals](design/frontend-target/references/README.md) are current visual references, outside the frozen historical packs. Their example data and unsupported controls do not override authored cases or API behavior.
+## Current handoffs
 
-1. Latest explicit user decisions, including English language, Cinematic Brown Noir, the eight frontend target images, and shared visuals/public pages first, control project direction.
-2. The frozen v3 implementation-ready pack governs requirements and acceptance where no later decision supersedes it.
-3. Current code and schemas define implemented behavior; the API handoff describes those sources. A requirement is not evidence that it has been implemented.
-4. `STATUS.md` records implementation observations and dated verification. Progress logs provide historical evidence, not live service state.
-5. v2.1 technical rationale applies where v3 and current decisions leave a gap; v1 examples and assets are historical references.
+- [Frontend/backend integration](agent-handoff/FRONTEND_BACKEND_INTEGRATION.md): connected flows, shared components, retry behavior and storage boundaries.
+- [Backend contracts](agent-handoff/BACKEND_CONTRACTS.md) and [simpler setup](agent-handoff/BACKEND_SIMPLE_SETUP.md): implemented interfaces and host workflow.
+- [Frontend progress](agent-handoff/FRONTEND_PROGRESS.md) and [backend progress](agent-handoff/BACKEND_PROGRESS.md): read the newest reconciliation before historical entries.
+- [Frontend contract requests](agent-handoff/FRONTEND_CONTRACT_REQUESTS.md): current follow-up and earlier request dispositions.
+- [External verification checklist](agent-handoff/TWITCH_EVENTSUB_CHECKLIST.md): real Twitch, OBS, deployment and player acceptance boundaries.
 
-[The reference index](reference/README.md) explains frozen-source boundaries and known implementation differences. Older plans in `superpowers/plans/`, the root v2.1 architecture document, and `GAMEPLAY_DEBATE.md` retain their historical scope. Old debate startup guides are preserved under [history](history/README.md).
+Port observations, screenshots, test counts and account checks apply to their recorded version and environment. A guide or requirement is not evidence of a passing test.
 
-## Active handoffs
+## Documentation layout
 
-- [Backend progress](agent-handoff/BACKEND_PROGRESS.md)
-- [Frontend progress](agent-handoff/FRONTEND_PROGRESS.md)
-- [Frontend contract requests](agent-handoff/FRONTEND_CONTRACT_REQUESTS.md)
+| Location                                    | Contents                                                                      |
+| ------------------------------------------- | ----------------------------------------------------------------------------- |
+| [development/](development/README.md)       | Setup, contributing and collaboration guides.                                 |
+| [architecture/](architecture/DECISIONS.md)  | Current technical decisions and compatibility choices.                        |
+| [agent-handoff/](agent-handoff/)            | API contracts and current cross-agent handoffs.                               |
+| [operations/](operations/)                  | Integration, resource limits, predeployment and dated backend records.        |
+| [evidence/](evidence/README.md)             | Verification index and dated frontend integration results.                    |
+| [design/](design/frontend-target/README.md) | Frontend targets and preserved visual references.                             |
+| [assets/](assets/screenshots/manifest.json) | Actual application screenshots with capture context.                          |
+| [demo/](demo/DEMO_VIDEO_PLAN.md)            | Demo planning and recording guidance.                                         |
+| [reference/](reference/README.md)           | Frozen supplied specifications and a mutable implementation-difference index. |
+| [history/](history/README.md)               | Earlier architecture, transcripts, superseded prompts and progress snapshots. |
+| [superpowers/plans/](superpowers/plans/)    | Dated implementation plans; check their scope against current source.         |
 
-Read the current reconciliation at the top of each handoff before older entries. Port observations, screenshots, test totals, and account observations apply only to the session that recorded them.
+## Source precedence
+
+1. Latest explicit user decisions govern direction, including English, Cinematic Brown Noir, the eight visual references and the initial shared-system/public-page milestone.
+2. The frozen v3 implementation-ready pack governs requirements where later decisions do not supersede it. Its 18 screen entries describe surfaces and states, not 18 required URLs.
+3. Current source and schemas establish implemented behavior; [architecture decisions](architecture/DECISIONS.md) and handoffs explain compatibility choices.
+4. [Status](STATUS.md) and dated [evidence](evidence/README.md) establish what was observed. Historical results do not certify the current running service.
+5. v2.1 rationale and v1 examples fill historical context; they do not override v3 or current decisions.
+
+The [reference index](reference/README.md) records differences without editing source packs. Preserve historical quotations and provenance. New work starts from these current guides, not an archived task prompt.
+
+## Keep the map useful
+
+Keep only `README.md` and `AGENTS.md` as root Markdown files. Put current instructions in the relevant guide, dated results in evidence/operations, and superseded material in history. Link to an existing authority rather than copying another status list. Run `npm run docs:check` after moving or linking documents; see [repository conventions](repository-map.md).

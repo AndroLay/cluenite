@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Self-hosted faces (latin subset). Fraunces is variable on the weight axis. */
+/* Legacy self-hosted faces remain available. Shared EB Garamond and Inter faces are in site/site.css. */
 @font-face {
   font-family: "Fraunces";
   src: url("./assets/fonts/fraunces-latin-wght.woff2") format("woff2");
@@ -47,8 +47,8 @@
   --case-confirm: #c79a62;
   --case-stamp: #d9b681;
 
-  --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
-  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Cluenite EB Garamond", "Iowan Old Style", Georgia, serif;
+  --font-body: "Cluenite Inter", Inter, "Segoe UI", system-ui, sans-serif;
   --font-mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
 
   --radius-slip: 3px;

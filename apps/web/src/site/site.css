@@ -1,7 +1,60 @@
+/* Shared typefaces, self-hosted from the Fontsource latin subsets (SIL Open Font License, see assets/fonts).
+   The public pages, practice cases, live investigation, and OBS use the same family names. */
+@font-face {
+  font-family: "Cluenite EB Garamond";
+  src: url("../assets/fonts/eb-garamond-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Cluenite EB Garamond";
+  src: url("../assets/fonts/eb-garamond-latin-500-normal.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Cluenite EB Garamond";
+  src: url("../assets/fonts/eb-garamond-latin-600-normal.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Cluenite Inter";
+  src: url("../assets/fonts/inter-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Cluenite Inter";
+  src: url("../assets/fonts/inter-latin-500-normal.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Cluenite Inter";
+  src: url("../assets/fonts/inter-latin-600-normal.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Cluenite Inter";
+  src: url("../assets/fonts/inter-latin-700-normal.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Site pages: landing, case menu, guide, and settings. Colors and type come from the
    Cinematic Brown Noir tokens in style.css. The OBS and case views keep their own styles. */
 
 .site {
+  --site-serif: var(--font-display);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -29,13 +82,14 @@ html[data-text-size="large"] {
   font-family: var(--font-display);
   font-weight: 600;
   line-height: 1.1;
-  letter-spacing: -0.02em;
+  /* Garamond needs less negative tracking than the Fraunces values these rules started with. */
+  letter-spacing: -0.01em;
   text-wrap: balance;
 }
 .site h1 {
   font-size: clamp(2.5rem, 4.6vw + 1rem, 4.5rem);
   line-height: 1.02;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
 }
 .site h2 {
   font-size: clamp(1.75rem, 2.4vw + 1rem, 2.5rem);
@@ -201,10 +255,17 @@ html[data-text-size="large"] {
   padding-top: clamp(40px, 7vw, 88px);
   padding-bottom: clamp(56px, 8vw, 104px);
 }
-/* The landing page sits directly under the header, as in the mockup. */
-.site-page:has(> .landing) {
+/* The landing and the plate screens own their full-width layout: their own nav and footer, no page gutters. */
+.site-page:has(> .landing),
+.site-page:has(> .plate),
+.site-page:has(> .gs),
+.site-page:has(> .game-workspace),
+.site-page:has(> .preview-loading) {
+  max-width: none;
   padding-top: 0;
-  padding-bottom: 40px;
+  padding-bottom: 0;
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .site-footer {

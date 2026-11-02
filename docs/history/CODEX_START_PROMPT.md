@@ -6,7 +6,7 @@ You are **Codex**, acting as the **lead gameplay systems inventor and critical p
 
 ## Your first action
 
-At the repository root, open `GAMEPLAY_DEBATE.md` and read Sections 0–4 in full. This document contains the user requirements, gameplay constraints, adversarial debate protocol, research caveats, scoring criteria, and shared discussion log. **Treat it as the canonical brief.** If the file is missing, explicitly report that problem instead of inventing a new debate history. Optional earlier documents can inform you, but do not assume their product decisions are final.
+At the repository root, open `docs/history/gameplay-debate.md` and read Sections 0–4 in full. This document contains the user requirements, gameplay constraints, adversarial debate protocol, research caveats, scoring criteria, and shared discussion log. **Treat it as the canonical brief.** If the file is missing, explicitly report that problem instead of inventing a new debate history. Optional earlier documents can inform you, but do not assume their product decisions are final.
 
 ## Your role in Turn 01
 
@@ -30,7 +30,7 @@ Then choose a **tentative leading direction**, give the strongest case **against
 
 ## Output and handoff
 
-Write ONLY your own new section under `## 4. Discussion log` in `GAMEPLAY_DEBATE.md`:
+Write ONLY your own new section under `## 4. Discussion log` in `docs/history/gameplay-debate.md`:
 
 `## Turn 01 — CODEX`
 

@@ -13,6 +13,7 @@ import {
   type QuickStage,
 } from "../quickCase/viewModel";
 import CaseScene from "./CaseScene.vue";
+import SiteIcon from "../site/SiteIcon.vue";
 
 const props = withDefaults(
   defineProps<{
@@ -171,7 +172,7 @@ const linkSummary = computed(() => {
     .filter((clue) => clue.status === "linked")
     .map((clue) => clue.id);
   return pair.length >= 2
-    ? `✓ Linked: ${pair.join(" ↔ ")}`
+    ? `Linked: ${pair.join(" and ")}`
     : "No link recorded yet.";
 });
 // Says why verdicts are off, instead of only dimming the buttons.
@@ -218,7 +219,7 @@ const chosenVerdict = computed(() => {
 // Preview data is not server-verified, so the stamp must not claim a real solve.
 const stampLabel = computed(() => {
   const base =
-    props.view.source === "simulation" ? "◇ Sample verdict" : "✓ Solved";
+    props.view.source === "simulation" ? "Sample verdict" : "Solved";
   return chosenVerdict.value ? `${base}: ${chosenVerdict.value.label}` : base;
 });
 
@@ -636,6 +637,7 @@ onBeforeUnmount(() => {
             class="qc-linked"
             :class="{ 'is-pending': linkedCount < 2 }"
           >
+            <SiteIcon v-if="linkedCount >= 2" name="link" />
             {{ linkSummary }}
           </p>
           <button
@@ -704,7 +706,7 @@ onBeforeUnmount(() => {
           <span
             ref="stampEl"
             class="qc-stamp"
-          >{{ stampLabel }}</span>
+          ><SiteIcon :name="view.source === 'simulation' ? 'scales' : 'check'" /> {{ stampLabel }}</span>
           <button
             v-if="!props.obs"
             type="button"

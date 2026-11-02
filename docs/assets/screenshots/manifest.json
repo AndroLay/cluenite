@@ -1,0 +1,35 @@
+{
+  "capturedAt": "2026-11-02T14:28:14.549Z",
+  "environment": "local Vite at localhost:5173; anonymous browser",
+  "source": "Current working tree; frontend design and integration are in development",
+  "viewport": {
+    "width": 1440,
+    "height": 960
+  },
+  "screenshots": [
+    {
+      "file": "landing.png",
+      "path": "/",
+      "label": "Cluenite landing page",
+      "boundary": "Public product introduction; no signed-in account"
+    },
+    {
+      "file": "main-menu.png",
+      "path": "/dashboard",
+      "label": "Main menu",
+      "boundary": "Anonymous account state; saved sessions require sign-in"
+    },
+    {
+      "file": "case-library.png",
+      "path": "/play",
+      "label": "Case selection",
+      "boundary": "Visible live case picker and Q01 card; no round created; practice cards are below the capture"
+    },
+    {
+      "file": "manuscript-practice.png",
+      "path": "/?view=quick",
+      "label": "A Missing Manuscript practice",
+      "boundary": "Local scripted experience; no Twitch/provider events or persisted live round"
+    }
+  ]
+}

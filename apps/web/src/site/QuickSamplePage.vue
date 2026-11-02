@@ -77,7 +77,6 @@ function chooseVerdict(id: string): void {
 <template>
   <article class="qs" aria-labelledby="qs-title">
     <header class="qs-hero">
-      <p class="qs-kicker">Quick Case · sample</p>
       <h1 id="qs-title">A Missing Manuscript</h1>
       <p class="qs-premise">
         A rare manuscript vanished from a private study. The room was locked,
@@ -276,14 +275,6 @@ function chooseVerdict(id: string): void {
   color: var(--case-paper);
 }
 
-.qs-kicker {
-  margin: 0 0 10px;
-  color: var(--case-gold);
-  font-size: 0.8125rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
 .qs h1 {
   margin: 0;
   max-width: 18ch;
@@ -442,9 +433,6 @@ function chooseVerdict(id: string): void {
 .qs-clue--print.is-found {
   border-color: var(--case-gold);
   background: #f1e2b8;
-  box-shadow:
-    0 0 0 1px var(--case-gold),
-    0 0 28px rgba(230, 176, 82, 0.45);
 }
 
 .qs-feed {
@@ -650,7 +638,6 @@ function chooseVerdict(id: string): void {
 
 .qs-steps li.is-current .qs-node {
   border-color: var(--case-gold);
-  box-shadow: 0 0 0 4px rgba(230, 176, 82, 0.25);
 }
 
 .qs-sub {
@@ -736,18 +723,6 @@ function chooseVerdict(id: string): void {
   }
 }
 
-@keyframes qs-glow {
-  from {
-    box-shadow:
-      0 0 0 1px var(--case-gold),
-      0 0 0 rgba(230, 176, 82, 0);
-  }
-  to {
-    box-shadow:
-      0 0 0 1px var(--case-gold),
-      0 0 28px rgba(230, 176, 82, 0.45);
-  }
-}
 
 @keyframes qs-rise {
   from {
@@ -782,17 +757,6 @@ function chooseVerdict(id: string): void {
   }
 }
 
-/* The current step pings twice and settles on its resting ring. */
-@keyframes qs-ping {
-  0%,
-  100% {
-    box-shadow: 0 0 0 4px rgba(230, 176, 82, 0.25);
-  }
-  50% {
-    box-shadow: 0 0 0 10px rgba(230, 176, 82, 0);
-  }
-}
-
 html[data-motion="full"] .qs-clue {
   transition:
     background-color var(--dur-state) ease,
@@ -811,9 +775,7 @@ html[data-motion="full"] .qs-clue.is-found {
 }
 
 html[data-motion="full"] .qs-clue--print.is-found {
-  animation:
-    qs-stamp 420ms var(--ease-out-expo) backwards,
-    qs-glow 900ms ease-out backwards;
+  animation: qs-stamp 420ms var(--ease-out-expo) backwards;
 }
 
 html[data-motion="full"] .qs-chip {
@@ -883,10 +845,6 @@ html[data-motion="full"] .qs-node {
     background-color var(--dur-state) ease,
     border-color var(--dur-state) ease,
     box-shadow var(--dur-state) ease;
-}
-
-html[data-motion="full"] .qs-steps li.is-current .qs-node {
-  animation: qs-ping 1.6s ease-in-out 3;
 }
 
 html[data-motion="full"] .qs-hint {

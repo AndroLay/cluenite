@@ -1,6 +1,8 @@
 # Simple setup and flexible controls
 
-**Owner:** Codex / backend; frontend implementation stays with Haiku.
+**Owner:** Codex / backend; current frontend design ownership is Opus (previously Haiku).
+
+**Frontend reconciliation:** the local working tree now connects session selection, invitation continuation, OBS controls and explicit rejoin. See the [integration handoff](FRONTEND_BACKEND_INTEGRATION.md) and [dated evidence](../evidence/frontend-integration-2026-11-02.md). The backend-only checks below retain their original scope; visual/player acceptance and production deployment remain separate.
 
 **Verified:** 2 November 2026, 11:31 UTC, local API and real Twitch accounts.
 
@@ -65,7 +67,7 @@ Keep the existing cookie, `Origin`, `X-CSRF-Token`, and stable `Idempotency-Key`
 
 Handle `404 twitch_user_not_found` as a username correction. `503 twitch_lookup_unavailable` is a temporary lookup failure. `503 twitch_connection_recovering` includes `Retry-After: 2`: retry with backoff and the same mutation key rather than forcing OAuth. The background Twitch manager owns refresh; this route does not refresh concurrently, and lookup remains unavailable until that worker recovers. `409 twitch_reauthorization_required` means the local authorization is absent. Existing `invite_idempotency_replay` does not recover the secret link returned at creation; never silently create another invitation as a network retry.
 
-For a signed-out invitee, Haiku should retain the pending invitation only in same-tab `sessionStorage` before starting OAuth, remove the token from the visible address, and recover it on the fixed-origin return. Clear it after acceptance, decline, logout, or expiry, and reject malformed/stale stored values. Do not use persistent `localStorage` or add a user-controlled OAuth return destination. The existing accept/decline endpoints still verify the named authenticated account. This browser wiring is pending frontend implementation and verification.
+For a signed-out invitee, Haiku should retain the pending invitation only in same-tab `sessionStorage` before starting OAuth, remove the token from the visible address, and recover it on the fixed-origin return. Clear it after acceptance, decline, logout, or expiry, and reject malformed/stale stored values. Do not use persistent `localStorage` or add a user-controlled OAuth return destination. The existing accept/decline endpoints still verify the named authenticated account. This browser wiring is implemented; see the [frontend integration handoff](FRONTEND_BACKEND_INTEGRATION.md) for the current flow and dated verification boundary.
 
 ## Keep OBS credential handling explicit
 

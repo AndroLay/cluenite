@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import type { SessionControl } from "@cluenite/contracts";
+import type { SessionControl, SessionPhase } from "@cluenite/contracts";
 import type { ConnectionState } from "../net/roundClient";
+import OverlayControls from "./OverlayControls.vue";
 
 // Host-only panel. The server enforces every rule (length, grammar, rate limit, dev gate);
 // this panel only sends text and shows the ack it gets back.
@@ -9,8 +10,11 @@ const MAX_COMMAND_LENGTH = 120;
 
 const props = defineProps<{
   sessionId: string;
+  busy?: boolean;
+  host?: boolean;
   connection: ConnectionState;
   paused: boolean;
+  phase: SessionPhase | null;
   notice: { tone: "ok" | "warn"; text: string } | null;
 }>();
 
@@ -20,12 +24,12 @@ const emit = defineEmits<{
 }>();
 
 const draft = ref("");
-const connected = computed(() => props.connection === "connected");
+const connected = computed(() => props.connection === "connected" && !props.busy);
 const canSend = computed(
-  () => connected.value && draft.value.trim().length > 0,
+  () => props.host !== false && connected.value && draft.value.trim().length > 0,
 );
 const connectionLabel = computed(() => {
-  if (props.connection === "connected") return "Connected";
+  if (props.connection === "connected" && !props.busy) return "Connected";
   if (props.connection === "connecting") return "Connecting";
   return "Disconnected";
 });
@@ -36,6 +40,7 @@ function submit(): void {
 }
 
 function restart(): void {
+  if (!canRestart.value || props.host === false) return;
   if (
     window.confirm(
       "Restart the round from the beginning? Current progress will be lost.",
@@ -44,20 +49,61 @@ function restart(): void {
     emit("control", "restart");
   }
 }
+
+// Start is accepted only from READY. Stop is accepted from every non-terminal phase (server: rounds in
+// CANCELLED, PARTIAL, or RESOLVED are already stopped).
+const PHASE_LABELS: Record<SessionPhase, string> = {
+  COOP_WAITING: "Waiting for team",
+  READY: "Ready",
+  ACTIVE: "Active",
+  PAUSED: "Paused",
+  RESOLVED: "Resolved",
+  PARTIAL: "Ended early",
+  CANCELLED: "Cancelled",
+};
+const STOPPABLE_PHASES: readonly SessionPhase[] = ["COOP_WAITING", "READY", "ACTIVE", "PAUSED"];
+const phaseLabel = computed(() => (props.phase === null ? "" : PHASE_LABELS[props.phase]));
+const canStart = computed(() => connected.value && props.phase === "READY");
+const canStop = computed(
+  () => connected.value && props.phase !== null && STOPPABLE_PHASES.includes(props.phase),
+);
+// Pause is accepted only from ACTIVE and resume only from PAUSED. Restart requires an open, joined round.
+// Without a phase (older snapshots), fall back to the paused flag alone.
+const canPause = computed(
+  () => connected.value && !props.paused && (props.phase === null || props.phase === "ACTIVE"),
+);
+const canResume = computed(
+  () => connected.value && props.paused && (props.phase === null || props.phase === "PAUSED"),
+);
+const canRestart = computed(
+  () => connected.value && (props.phase === "READY" || props.phase === "ACTIVE" || props.phase === "PAUSED"),
+);
+
+function stop(): void {
+  if (
+    window.confirm(
+      "Stop this round? A stopped round cannot be started again.",
+    )
+  ) {
+    emit("control", "stop");
+  }
+}
+
 </script>
 
 <template>
   <section class="dash" aria-labelledby="dash-title">
     <header class="dash-head">
-      <h2 id="dash-title" class="dash-title">Host panel</h2>
+      <h2 id="dash-title" class="dash-title">{{ host === false ? 'Session tools' : 'Host panel' }}</h2>
       <span class="dash-conn" :data-state="connection">{{
         connectionLabel
       }}</span>
-      <span v-if="paused" class="dash-paused">Paused</span>
+      <span v-if="phase !== null" class="dash-phase" :data-phase="phase">{{ phaseLabel }}</span>
+      <span v-else-if="paused" class="dash-paused">Paused</span>
       <span class="dash-session">Session {{ sessionId }}</span>
     </header>
 
-    <form class="dash-form" @submit.prevent="submit">
+    <form v-if="host !== false" class="dash-form" @submit.prevent="submit">
       <label class="dash-label" for="dash-command">Command</label>
       <div class="dash-row">
         <input
@@ -85,11 +131,19 @@ function restart(): void {
       </p>
     </form>
 
-    <div class="dash-controls" role="group" aria-label="Round controls">
+    <div v-if="host !== false" class="dash-controls" role="group" aria-label="Round controls">
       <button
         type="button"
         class="dash-button"
-        :disabled="!connected || paused"
+        :disabled="!canStart"
+        @click="emit('control', 'start')"
+      >
+        Start
+      </button>
+      <button
+        type="button"
+        class="dash-button"
+        :disabled="!canPause"
         @click="emit('control', 'pause')"
       >
         Pause
@@ -97,7 +151,7 @@ function restart(): void {
       <button
         type="button"
         class="dash-button"
-        :disabled="!connected || !paused"
+        :disabled="!canResume"
         @click="emit('control', 'resume')"
       >
         Resume
@@ -105,16 +159,27 @@ function restart(): void {
       <button
         type="button"
         class="dash-button dash-danger"
-        :disabled="!connected"
+        :disabled="!canRestart"
         @click="restart"
       >
         Restart
+      </button>
+      <button
+        type="button"
+        class="dash-button dash-danger"
+        :disabled="!canStop"
+        @click="stop"
+      >
+        Stop
       </button>
     </div>
 
     <p v-if="notice" class="dash-notice" :data-tone="notice.tone" role="status">
       {{ notice.text }}
     </p>
+
+    <a :href="`/setup?round=${encodeURIComponent(sessionId)}`">Stream setup for this session</a>
+    <OverlayControls :session-id="sessionId" />
   </section>
 </template>
 
@@ -151,6 +216,7 @@ function restart(): void {
 
 .dash-conn,
 .dash-paused,
+.dash-phase,
 .dash-session {
   padding: 3px 8px;
   border: 1px solid var(--case-rule-strong);
@@ -190,6 +256,23 @@ function restart(): void {
 .dash-paused {
   border-color: var(--case-amber);
   color: var(--case-amber);
+}
+
+.dash-phase[data-phase="ACTIVE"],
+.dash-phase[data-phase="RESOLVED"] {
+  color: var(--case-confirm);
+  border-color: rgba(191, 177, 154, 0.45);
+}
+.dash-phase[data-phase="COOP_WAITING"],
+.dash-phase[data-phase="READY"],
+.dash-phase[data-phase="PAUSED"] {
+  color: var(--case-amber);
+  border-color: rgba(217, 182, 129, 0.45);
+}
+.dash-phase[data-phase="PARTIAL"],
+.dash-phase[data-phase="CANCELLED"] {
+  color: var(--case-alert);
+  border-color: rgba(217, 154, 136, 0.55);
 }
 
 .dash-session {
@@ -314,6 +397,27 @@ function restart(): void {
 .dash-danger:hover:not(:disabled) {
   border-color: var(--case-alert);
   background: rgba(217, 154, 136, 0.08);
+}
+
+.dash-subtitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--case-paper);
+}
+
+.dash-overlay {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--case-rule);
+}
+.dash-overlay .dash-controls {
+  padding-top: 0;
+  border-top: 0;
 }
 
 .dash-notice {

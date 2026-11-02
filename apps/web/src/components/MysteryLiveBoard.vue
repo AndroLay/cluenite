@@ -750,7 +750,7 @@ function solveWith(verdictId: string): void {
           <p>{{ snapshot.currentHint }}</p>
         </section>
         <button
-          v-else-if="actions.has('hint')"
+          v-if="actions.has('hint')"
           class="hint-action"
           type="button"
           :disabled="!interactive || !canAskHint"

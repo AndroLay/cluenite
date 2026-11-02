@@ -9,6 +9,10 @@ Frontend requests and dispositions are in [FRONTEND_CONTRACT_REQUESTS.md](FRONTE
 
 ## Current integration context
 
+### Frontend wiring reconciliation (2 November 2026, after 14:15 UTC)
+
+The current frontend is owned by Opus, replacing Haiku. A scoped user-authorized integration connected saved sessions, lifecycle controls, OBS create/copy/replace/revoke, C01 username invitations/consent continuation, authorized workstations/shared proof and explicit rejoin. [The integration handoff](FRONTEND_BACKEND_INTEGRATION.md) records implementation; [dated evidence](../evidence/frontend-integration-2026-11-02.md) records eight regressions, fourteen isolated browser scenarios and two existing-account read-only checks. Earlier statements assigning this wiring to Haiku retain their historical scope and are superseded. Broader visual/player acceptance, fresh provider UI acceptance and production deployment remain separate.
+
 ### Resource admission and overload recovery (2 November 2026, 12:28 UTC)
 
 API overload now returns `503 {"error":"server_busy"}` with `Retry-After: 1` before expensive work; existing 429/CSRF/idempotency rules remain. Readiness has its own bounded database budget. Socket join/control/command admission uses the existing `RATE_LIMITED` result; clients should retry with backoff and the same mutation key. No game command or proof schema changed.
@@ -243,7 +247,7 @@ The user tried the current build and reported that the purpose of the game, guid
 5. Keep the selected case's public objective/premise visible in play and add a concise progress rail: inspect → connect evidence → submit a supported conclusion → reveal. Use `availableActions` to enable choices and use `RoundSnapshot` as the source of live state.
 6. The existing command examples need a correctness pass. `!inspect CAM` is an accepted alias for `!look CAM`, but `!link` takes **evidence IDs**, such as `!link CAM_R07 SCHEDULE_R07`; the current DashboardPanel example `!link CAM SCHEDULE` teaches invalid IDs. Use actual authored public metadata and do not reveal accepted answers before the proof is complete.
 
-At the time of the original request, Codex had not edited frontend files. Normal ownership follows `TEAM_PROTOCOL.md`; the user authorized the cross-area documentation/English pass on 2 November. No backend contract change is required for this entry flow: use existing `GET /api/cases`, `/api/me`, OAuth, snapshots, and `availableActions`. Claude should record implementation/progress in its frontend-owned handoff files and verify the actual fresh-entry browser flow.
+At the time of the original request, Codex had not edited frontend files. Normal ownership follows `docs/development/collaboration.md`; the user authorized the cross-area documentation/English pass on 2 November. No backend contract change is required for this entry flow: use existing `GET /api/cases`, `/api/me`, OAuth, snapshots, and `availableActions`. Claude should record implementation/progress in its frontend-owned handoff files and verify the actual fresh-entry browser flow.
 
 ### Contract changelog
 

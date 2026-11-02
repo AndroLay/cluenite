@@ -1,0 +1,1160 @@
+/*
+ * Screen plates: the Cluenite reference layouts, ported for the product routes.
+ * Every selector is scoped under .plate so no other route picks these rules up.
+ * Source values come from the reference pack's style.css; the landing-only and
+ * body/html rules are intentionally not carried over.
+ */
+.plate {
+  --bg: #0d0907;
+  --bg2: #17100c;
+  --card: #21160f;
+  --card2: #2d2016;
+  --edge: #694625;
+  --edge-hi: #ae7d42;
+  --gold: #d5a65e;
+  --pale: #f0dfc3;
+  --muted: #b6a18a;
+  /* Lightened from #836f5c, which measured 4.15:1 on the page and 3.70:1 on panels; this reaches 6.15:1 and 4.9:1. */
+  --dim: #a08c77;
+  --green: #90b899;
+  --red: #c87d68;
+  --shadow: 0 20px 65px rgba(0, 0, 0, 0.4);
+  /* The site serif (EB Garamond, defined on .site in site.css). The fallback list keeps plates readable alone. */
+  --plate-serif: var(--site-serif, "Cluenite EB Garamond", Georgia, "Times New Roman", serif);
+  --plate-sans: "Cluenite Inter", Inter, Arial, sans-serif;
+  /* The reference sets line-height only on p, h1 and .bodycopy; everything else uses the browser's normal line box. */
+  line-height: normal;
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 900px;
+  overflow: hidden;
+  color: var(--pale);
+  font-family: var(--plate-sans);
+  -webkit-font-smoothing: antialiased;
+  background:
+    radial-gradient(ellipse at 82% 16%, #3121154a, transparent 45%),
+    linear-gradient(135deg, #0d0907, #15100c 70%, #0b0806);
+}
+.plate *,
+.plate *::before,
+.plate *::after {
+  box-sizing: border-box;
+}
+/* The reference pack draws no scanline or edge vignette on its screens (only in OBS mode), so none is drawn here. */
+.plate a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Footer shared by every plate screen */
+.plate .plate-foot {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 64px;
+  border-top: 1px solid #5e3d22;
+  background: #0d0907;
+}
+.plate .plate-foot p {
+  font-size: 12px;
+  color: var(--dim);
+}
+.plate .connect-foot {
+  margin: 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--dim);
+}
+
+/* Navigation bar */
+.plate .plate-nav {
+  height: 68px;
+  padding: 0 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #75502b65;
+  background: #100b08e8;
+  position: relative;
+  z-index: 15;
+}
+.plate .brand {
+  font-family: var(--plate-serif);
+  font-size: 29px;
+  font-weight: 650;
+  letter-spacing: 0.2px;
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  color: var(--pale);
+}
+.plate .brand .glyph {
+  font-family: var(--plate-sans);
+  font-size: 24px;
+  color: var(--gold);
+  font-weight: 300;
+}
+.plate .navlinks {
+  display: flex;
+  align-items: center;
+  gap: 34px;
+  font-size: 13px;
+  color: #c9b79e;
+  /* Reserves the width of the reference "DESIGN REFERENCE" tag (removed) so the links keep their positions. */
+  margin-right: 176px;
+}
+.plate .navlinks .light {
+  color: var(--pale);
+}
+/* Nav links measured 16px tall; a 32px line box (44px on touch widths, below) makes them comfortable targets. */
+.plate .navlinks a,
+.plate .plate-nav .brand {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+}
+.plate .nav-jewel {
+  width: 160px;
+  border-top: 1px solid #8d6134;
+  margin-left: 90px;
+  position: relative;
+}
+/* A drawn diamond on the rule, in place of a text glyph. */
+.plate .nav-jewel:after {
+  content: "";
+  position: absolute;
+  top: -5px;
+  left: 48%;
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--gold);
+  background: #100b08;
+  transform: rotate(45deg);
+}
+
+.plate .inner {
+  padding: 32px 64px 42px;
+  position: relative;
+  z-index: 3;
+  min-height: 832px;
+}
+
+/* Type */
+.plate small,
+.plate .small {
+  font-size: 12px;
+  color: var(--muted);
+}
+.plate .eyebrow {
+  text-transform: uppercase;
+  font-size: 11px;
+  color: var(--gold);
+  letter-spacing: 3px;
+  font-weight: 700;
+}
+.plate h1,
+.plate h2,
+.plate h3,
+.plate h4,
+.plate p {
+  margin: 0;
+}
+/* Prefixed with .site so these beat the global .site h1-h3 rules in site.css (same specificity otherwise). */
+.site .plate h1,
+.site .plate h2,
+.site .plate h3,
+.site .plate .serif {
+  font-family: var(--plate-serif);
+  font-weight: 500;
+}
+.site .plate h1 {
+  font-size: 74px;
+  line-height: 0.95;
+  letter-spacing: -1.2px;
+}
+.site .plate h2 {
+  font-size: 43px;
+  line-height: 1.04;
+}
+.site .plate h3 {
+  font-size: 29px;
+  line-height: 1.1;
+}
+.site .plate h4 {
+  font-family: var(--plate-sans);
+  font-size: 22px;
+  font-weight: 700;
+}
+/* Page titles that use the h2 size but need the page's single h1 for structure.
+   The reference sets these as h2, which carry no letter-spacing; the h1 rule above would add -1.2px. */
+.site .plate .page-title {
+  font-size: 43px;
+  line-height: 1.04;
+  letter-spacing: 0;
+}
+@media (max-width: 1100px) {
+  .site .plate .page-title {
+    font-size: 36px;
+  }
+}
+/* Two-column setup layout; stacks at 760px in the media block below. */
+.plate .grid2.split-main {
+  grid-template-columns: 1.1fr 1fr;
+}
+.plate .step-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  padding: 12px 25px;
+  background: #21160f;
+  border: 1px solid #684626;
+  border-radius: 9px;
+}
+.plate .step-bar .step-rule {
+  margin-left: 30px;
+}
+/* Keeps grid items, input rows, and long code strings inside narrow columns. */
+.plate .grid2 > *,
+.plate .col,
+.plate .input-like {
+  min-width: 0;
+}
+/* The reference prints the OBS address as plain sans text, not as a highlighted code chip. */
+.plate .input-like code {
+  overflow-wrap: anywhere;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font-family: var(--plate-sans);
+}
+.plate .obs-mini {
+  max-width: 100%;
+}
+.plate .obs-mini .row {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.plate .row.between {
+  flex-wrap: wrap;
+  row-gap: 12px;
+}
+.plate p {
+  line-height: 1.6;
+  font-size: 14px;
+  color: var(--muted);
+}
+.plate .bodycopy {
+  font-size: 16px;
+  line-height: 1.65;
+  color: #cfbfa9;
+}
+
+/* Buttons */
+.plate .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 13px 22px;
+  min-height: 45px;
+  border-radius: 6px;
+  border: 1px solid #916839;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--pale);
+  background: linear-gradient(#342418, #21170f);
+  box-shadow: 0 0 0 1px #0006;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.plate .btn.gold {
+  color: #291808;
+  background: linear-gradient(#f0ca8d, #bd8440);
+  border-color: #e4b16b;
+  box-shadow: inset 0 1px #fff9, 0 6px 25px #aa6f2438;
+}
+.plate .btn.ghost {
+  background: #100b09a8;
+}
+.plate .btn.danger {
+  border-color: #8b4d42;
+  color: #e5b0a1;
+}
+/* A quieter button. Colour, not opacity, so active muted controls keep 7:1 text contrast (opacity measured 3.8:1). */
+.plate .btn.muted {
+  border-color: #6a4a2a;
+  color: var(--muted);
+  background: #1a120d;
+}
+.plate .btn:disabled {
+  cursor: not-allowed;
+}
+.plate .btn.gold:disabled {
+  color: #4a3420;
+  background: linear-gradient(#b99a6c, #8a6a40);
+  border-color: #a5835a;
+  box-shadow: none;
+}
+.plate .btn.sm {
+  min-height: 32px;
+  padding: 7px 12px;
+  font-size: 11px;
+}
+.plate .btn.tiny {
+  min-height: 28px;
+  padding: 5px 10px;
+  font-size: 10px;
+}
+
+/* Tags */
+.plate .tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 25px;
+  font-size: 11px;
+  line-height: 1;
+  color: #d2b07b;
+  border: 1px solid #926638;
+  background: #3b2718;
+}
+.plate .tag.success {
+  border-color: #446d4a;
+  color: #a7cc9a;
+  background: #19291c;
+}
+.plate .tag.error {
+  border-color: #7e3f38;
+  color: #e5a394;
+  background: #311814;
+}
+.plate .tag.live {
+  border-color: #9a4b32;
+  color: #f2c4a1;
+  background: #4a1f14;
+}
+.plate .tag.subtle {
+  border-color: #4f3926;
+  color: var(--muted);
+  background: #1a120e;
+}
+
+/* Panels */
+.plate .panel {
+  border: 1px solid #80552f;
+  box-shadow: var(--shadow), inset 0 1px #b1864a55;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #291b12ee, #160f0cfa 75%);
+  position: relative;
+  overflow: hidden;
+}
+.plate .panel:before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 12px;
+  box-shadow: inset 0 0 30px #0005;
+}
+.plate .panel.pad {
+  padding: 22px;
+}
+.plate .panel-head {
+  min-height: 49px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 20px;
+  background: linear-gradient(90deg, #312013, #20140c);
+  border-bottom: 1px solid #6e4a2c;
+}
+.site .plate .panel-title {
+  font-family: var(--plate-serif);
+  font-size: 26px;
+  color: #f3dfbd;
+}
+.plate .panel-body {
+  padding: 20px;
+}
+.plate .divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #78502d, transparent);
+  margin: 18px 0;
+}
+
+/* Layout helpers */
+.plate .row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.plate .row.between {
+  justify-content: space-between;
+}
+.plate .col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.plate .grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.plate .grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.plate .grid4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.plate .mt8 {
+  margin-top: 8px;
+}
+.plate .mt12 {
+  margin-top: 12px;
+}
+.plate .mt18 {
+  margin-top: 18px;
+}
+.plate .mt24 {
+  margin-top: 24px;
+}
+.plate .mt32 {
+  margin-top: 32px;
+}
+.plate .light {
+  color: var(--pale);
+}
+.plate .gold-txt {
+  color: var(--gold);
+}
+.plate .muted {
+  color: var(--muted);
+}
+.plate .dim {
+  color: var(--dim);
+}
+.plate .right {
+  text-align: right;
+}
+.plate .center {
+  text-align: center;
+}
+
+/* Imagery */
+.plate .image {
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  overflow: hidden;
+}
+.plate .image:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, #110b09 0%, transparent 70%);
+  pointer-events: none;
+}
+.plate .img-office {
+  background-image: url("./plates/office_wide.jpg");
+}
+.plate .img-gallery {
+  background-image: url("./plates/museum.jpg");
+}
+/* S03 overlay preview: the reference uses a light tint over the museum plate, without the bottom fade of .image. */
+.plate .setup-stage {
+  min-height: 270px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: linear-gradient(115deg, #22171390, #160d0b8c), url("./plates/museum.jpg") center / cover;
+}
+/* The reference shows the overlay card at 0.74 scale inside the stage. */
+.plate .setup-stage .obs-mini {
+  transform: scale(0.74);
+}
+.plate .img-trophy {
+  background-image: url("./plates/festival.jpg");
+}
+.plate .img-harbor {
+  background-image: url("./plates/port.jpg");
+}
+.plate .img-board {
+  background-image: url("./plates/case_board.jpg");
+}
+.plate .img-document {
+  background-image: url("./plates/game_writing.jpg");
+}
+.plate .img-manor {
+  background-image: url("./plates/manor.jpg");
+}
+.plate .hero-art {
+  position: absolute;
+  top: 68px;
+  right: 0;
+  width: 67%;
+  height: 365px;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.72;
+  z-index: 0;
+  mask-image: linear-gradient(to right, transparent 0%, black 39%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 39%);
+}
+.plate .hero-title {
+  max-width: 650px;
+  position: relative;
+  z-index: 7;
+}
+.plate .hero-title p {
+  max-width: 590px;
+  margin-top: 14px;
+}
+.plate .hero-title .row {
+  margin-top: 22px;
+}
+
+/* Cards and small components */
+.plate .mini-card {
+  background: #20160f;
+  border: 1px solid #58402a;
+  border-radius: 7px;
+  padding: 16px;
+}
+.plate .mini-card.active {
+  border-color: #c58f4f;
+  background: #3b2717;
+}
+.plate .tile-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #986737;
+  border-radius: 8px;
+  background: #402915;
+  color: #f0c37a;
+  font-size: 24px;
+}
+.plate .profile-dot {
+  width: 44px;
+  height: 44px;
+  border-radius: 100%;
+  background: linear-gradient(140deg, #8a5f3b, #24170e);
+  border: 2px solid #ad773d;
+  display: grid;
+  place-items: center;
+  font-family: var(--plate-serif);
+  font-size: 24px;
+  color: #f1cf9b;
+}
+.plate .paper {
+  background: linear-gradient(135deg, #e9d9b9, #cdb48d);
+  color: #3d291c;
+  border: 2px solid #ad8e5e;
+  box-shadow: 0 6px 20px #0008;
+  transform: rotate(-1deg);
+  padding: 16px;
+  border-radius: 3px;
+}
+.plate .paper h4 {
+  font-family: var(--plate-serif);
+  color: #3f291a;
+}
+.plate .paper p {
+  font-family: var(--plate-sans);
+  font-size: 12px;
+  color: #674b34;
+}
+.plate .paper b {
+  color: #2b1a11;
+}
+.plate .chatline {
+  padding: 12px 6px;
+  border-bottom: 1px solid #67472b7d;
+  font-size: 12px;
+  display: flex;
+  gap: 12px;
+}
+.plate .chatline .user {
+  color: #e9c48d;
+  min-width: 98px;
+}
+.plate .chatline .msg {
+  color: #c6b49c;
+}
+.plate .chatline .command {
+  color: #edc079;
+  font-family: monospace;
+}
+.plate .kvrow {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #51371f;
+  font-size: 12px;
+}
+.plate .kvrow span {
+  color: var(--muted);
+}
+.plate .kvrow strong {
+  font-weight: 550;
+  color: #ead8b8;
+}
+.plate .navside {
+  width: 224px;
+  height: 100%;
+  border-right: 1px solid #634225;
+  background: #160f0b;
+  padding: 26px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  overflow: hidden;
+}
+.plate .navitem {
+  border-radius: 6px;
+  padding: 12px 16px;
+  color: #baaa93;
+  font-size: 13px;
+  /* Fixed line box keeps the reference pitch (about 47px per item); glyph fallback fonts would otherwise add height. */
+  line-height: 16.4px;
+}
+.plate .navitem.sel {
+  background: linear-gradient(90deg, #59371d, #281b12);
+  color: #f3dbaf;
+  border: 1px solid #a26e35;
+}
+.plate .progress {
+  height: 7px;
+  border-radius: 9px;
+  background: #382718;
+  border: 1px solid #694523;
+  overflow: hidden;
+}
+.plate .progress > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #92602c, #e5b772);
+}
+.plate .scene-hotspot {
+  position: absolute;
+  width: 39px;
+  height: 39px;
+  border-radius: 50%;
+  border: 1px solid #f4d393;
+  color: #fbe2b4;
+  display: grid;
+  place-items: center;
+  background: #211209b8;
+  box-shadow: 0 0 0 5px #20120966, 0 0 28px #f3b3548c;
+  font-size: 24px;
+  z-index: 4;
+}
+.plate .evidence-photo {
+  width: 100%;
+  height: 102px;
+  background: #513522;
+  position: relative;
+  border: 6px solid #dfccaa;
+  border-bottom-width: 20px;
+  box-shadow: 0 4px 12px #0008;
+}
+.plate .evidence-photo span {
+  position: absolute;
+  bottom: -16px;
+  left: 6px;
+  color: #382517;
+  font-size: 10px;
+  font-weight: 700;
+}
+.plate .input-like {
+  padding: 13px;
+  background: #0f0b08;
+  border: 1px solid #654629;
+  border-radius: 6px;
+  color: #e2ceb1;
+  font-size: 13px;
+}
+.plate .step {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #3d2716;
+  border: 1px solid #d6a75e;
+  display: grid;
+  place-items: center;
+  color: #f0d3a7;
+  font-family: var(--plate-serif);
+  font-size: 20px;
+}
+.plate .toggle {
+  width: 44px;
+  height: 23px;
+  background: #7c5329;
+  border: 1px solid #ad7d48;
+  border-radius: 20px;
+  position: relative;
+  /* Switches were squeezed to 16px wide in narrow flex rows; they keep their size now. */
+  flex: none;
+  cursor: pointer;
+}
+/* A 44px-tall invisible hit area around the 23px switch. */
+.plate .toggle::before {
+  content: "";
+  position: absolute;
+  inset: -11px -4px;
+}
+.plate .toggle:disabled {
+  cursor: not-allowed;
+}
+.plate .toggle:after {
+  content: "";
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  width: 17px;
+  height: 17px;
+  background: #efc27b;
+  border-radius: 50%;
+}
+.plate .toggle.off {
+  background: #30251b;
+}
+.plate .toggle.off:after {
+  right: 22px;
+  background: #9f8c70;
+}
+.plate .wave {
+  height: 100px;
+  background: repeating-linear-gradient(90deg, #d8b57940 0 2px, transparent 2px 12px);
+  mask-image: linear-gradient(to top, transparent 0%, black 60%);
+  -webkit-mask-image: linear-gradient(to top, transparent 0%, black 60%);
+  position: relative;
+}
+
+/* Screen-specific layouts */
+.plate .auth-ambient {
+  position: absolute;
+  inset: 68px 0 0;
+  background: url("./plates/office_wide.jpg") center / cover;
+  filter: brightness(0.36) blur(4px);
+  opacity: 0.7;
+}
+.plate .auth-card {
+  position: relative;
+  z-index: 3;
+  width: 980px;
+  max-width: 100%;
+  margin: 74px auto 0;
+  padding: 30px;
+}
+.plate .auth-states {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 30px;
+}
+.plate .auth-states--single {
+  grid-template-columns: minmax(0, 380px);
+  justify-content: center;
+}
+.plate .auth-state {
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 35px 22px;
+  text-align: center;
+  gap: 15px;
+}
+.plate .auth-state p {
+  max-width: 34ch;
+}
+/* Dashboard-style plates stack nav, grid, and footer in a column, so the grid takes the space between the
+   68px top bar and the footer and the footer stays at the bottom edge instead of falling below the fold. */
+.plate:has(> .dashboard-grid) {
+  display: flex;
+  flex-direction: column;
+  min-height: max(900px, 100vh);
+}
+/* The rail fills that space, so its account block sits at the bottom edge as in the reference. */
+.plate .dashboard-grid {
+  flex: 1 0 auto;
+  display: grid;
+  grid-template-columns: 224px 1fr;
+}
+/* At 1440x900 the content and footer must fit in one frame, so the bottom gaps are tightened on these plates only. */
+.plate:has(> .dashboard-grid) .dashboard-main {
+  padding-bottom: 12px;
+}
+.plate:has(> .dashboard-grid) .plate-foot {
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+.plate .dashboard-main {
+  padding: 30px 32px;
+}
+.plate .dash-banner {
+  height: 184px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 26px 36px;
+  background: linear-gradient(90deg, #20140d 0%, #27160825), url("./plates/office_wide.jpg") right center / cover;
+}
+.plate .obs-stage {
+  position: relative;
+  min-height: 420px;
+  background: linear-gradient(120deg, #20140d, #3a281a);
+  border-radius: 12px;
+  border: 1px solid #684827;
+  overflow: hidden;
+}
+.plate .obs-mini {
+  width: min(530px, 100%);
+  max-width: 100%;
+  box-sizing: border-box;
+  height: 215px;
+  border: 1px solid #b1814e;
+  background: #160f0ce6;
+  border-radius: 11px;
+  padding: 14px 16px;
+  box-shadow: 0 20px 50px #0009;
+}
+.plate .frame-panel {
+  border: 1px solid #a17139;
+  border-radius: 12px;
+  box-shadow: inset 0 1px #cfaa7055, 0 20px 40px #0008;
+  background: #1b120d;
+  overflow: hidden;
+}
+.plate .session-scene {
+  position: relative;
+  background: url("./plates/museum.jpg") center / cover;
+  border: 1px solid #79512b;
+  border-radius: 11px;
+  overflow: hidden;
+}
+.plate .liquid-gold {
+  background: linear-gradient(135deg, #bd8341, #f1cb8b, #ad732b);
+  color: #26170b;
+}
+.plate .timeline-node {
+  width: 210px;
+  min-height: 195px;
+  border: 1px solid #8a5e37;
+  background: #24160f;
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.plate .timeline-node.unknown {
+  border-style: dashed;
+  border-color: #c89c5f;
+  background: #2c1e12;
+}
+.plate .theory-opt {
+  border: 1px solid #624528;
+  border-radius: 8px;
+  padding: 15px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: #1b110c;
+}
+.plate .theory-opt.sel {
+  border-color: #d8a85f;
+  background: #382313;
+}
+.plate .coop-court {
+  border: 1px solid #84562f;
+  background: radial-gradient(ellipse at center, #3e2618, #1a100b);
+  border-radius: 11px;
+  padding: 20px;
+}
+.plate .status-card {
+  height: 370px;
+  background: linear-gradient(140deg, #2b1d14, #17100c);
+  border: 1px solid #684427;
+  border-radius: 12px;
+  padding: 30px 18px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+}
+
+/* Narrow viewports: the fixed 1440px composition becomes a single column. */
+@media (max-width: 1100px) {
+  .plate {
+    min-height: 0;
+  }
+  .plate .plate-nav {
+    padding: 0 24px;
+    height: auto;
+    min-height: 68px;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-block: 12px;
+  }
+  .plate .nav-jewel {
+    display: none;
+  }
+  .plate .inner {
+    padding: 24px;
+    min-height: 0;
+  }
+  .site .plate h1 {
+    font-size: 52px;
+  }
+  .site .plate h2 {
+    font-size: 36px;
+  }
+  .plate .grid3,
+  .plate .grid4,
+  .plate .auth-states {
+    grid-template-columns: 1fr;
+  }
+  .plate .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  .plate .navside {
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid #634225;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .plate .auth-card {
+    margin-top: 24px;
+  }
+  .plate .auth-state {
+    height: auto;
+  }
+  .plate .hero-art {
+    width: 100%;
+    opacity: 0.35;
+  }
+}
+@media (max-width: 760px) {
+  .plate .navlinks {
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-right: 0;
+  }
+  .plate .navlinks a,
+  .plate .plate-nav .brand {
+    min-height: 44px;
+  }
+  .plate .row {
+    flex-wrap: wrap;
+  }
+  .plate .plate-foot {
+    flex-direction: column;
+    gap: 8px;
+    padding: 18px 24px;
+  }
+  .plate .grid2,
+  .plate .grid2.split-main {
+    grid-template-columns: 1fr;
+  }
+  .plate .step-bar .step-rule {
+    display: none;
+  }
+  .site .plate .page-title {
+    font-size: 30px;
+  }
+  .site .plate h1 {
+    font-size: 40px;
+  }
+  .site .plate h2 {
+    font-size: 30px;
+  }
+  .site .plate .panel-title {
+    font-size: 22px;
+  }
+}
+
+/*
+ * Motion for every plate screen. Each rule is gated on html[data-motion="full"], which settings.ts sets to
+ * "reduced" when the Settings choice or the system asks for less movement; style.css also clamps durations under
+ * prefers-reduced-motion. Entrances animate the individual translate/scale/opacity properties with backwards fill,
+ * so a finished entrance never fights a hover transform or an inline rotate.
+ */
+@keyframes plate-rise {
+  from {
+    opacity: 0;
+    translate: 0 16px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@keyframes plate-pan {
+  from {
+    background-position: 47% 52%;
+  }
+  to {
+    background-position: 53% 46%;
+  }
+}
+@keyframes plate-lamp {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  41% {
+    opacity: 1;
+  }
+  42% {
+    opacity: 0.72;
+  }
+  43% {
+    opacity: 1;
+  }
+  71% {
+    opacity: 0.88;
+  }
+  72% {
+    opacity: 1;
+  }
+}
+@keyframes plate-jewel {
+  from {
+    opacity: 0;
+    transform: rotate(45deg) scale(0.2);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(45deg) scale(1);
+  }
+}
+@keyframes plate-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 5px #20120966,
+      0 0 28px #f3b3548c;
+  }
+  50% {
+    box-shadow:
+      0 0 0 9px #20120933,
+      0 0 42px #f3b354cc;
+  }
+}
+@keyframes plate-fill {
+  from {
+    scale: 0 1;
+  }
+  to {
+    scale: 1 1;
+  }
+}
+
+/* A warm lamp glow over the upper right of every plate, flickering now and then. The landing keeps its own art. */
+html[data-motion="full"] .plate:not(.landing)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(ellipse 46% 38% at 82% 14%, #d9b68112, transparent 70%);
+  animation: plate-lamp 9s steps(1, end) infinite;
+}
+html[data-motion="full"] .plate .panel,
+html[data-motion="full"] .plate .mini-card,
+html[data-motion="full"] .plate .status-card,
+html[data-motion="full"] .plate .auth-state,
+html[data-motion="full"] .plate .step-bar,
+html[data-motion="full"] .plate .kvrow {
+  animation: plate-rise 640ms var(--ease-out-expo) backwards;
+}
+html[data-motion="full"] .plate :is(.grid2, .grid3, .grid4, .col, .library-grid, .auth-states) > :nth-child(2) {
+  animation-delay: 80ms;
+}
+html[data-motion="full"] .plate :is(.grid2, .grid3, .grid4, .col, .library-grid, .auth-states) > :nth-child(3) {
+  animation-delay: 160ms;
+}
+html[data-motion="full"] .plate :is(.grid2, .grid3, .grid4, .col, .library-grid, .auth-states) > :nth-child(n + 4) {
+  animation-delay: 240ms;
+}
+html[data-motion="full"] .plate .kvrow:nth-child(2) {
+  animation-delay: 60ms;
+}
+html[data-motion="full"] .plate .kvrow:nth-child(3) {
+  animation-delay: 120ms;
+}
+html[data-motion="full"] .plate .kvrow:nth-child(n + 4) {
+  animation-delay: 180ms;
+}
+html[data-motion="full"] .plate :is(.hero-art, .dash-banner, .setup-stage, .session-scene, .auth-ambient) {
+  animation: plate-pan 28s ease-in-out infinite alternate;
+}
+html[data-motion="full"] .plate .nav-jewel:after {
+  animation: plate-jewel 700ms var(--ease-out-expo) 160ms backwards;
+}
+html[data-motion="full"] .plate .scene-hotspot:not(:disabled) {
+  animation: plate-pulse 2.4s ease-in-out infinite;
+}
+html[data-motion="full"] .plate .progress > span {
+  transform-origin: left center;
+  animation: plate-fill 1200ms var(--ease-out-expo) 300ms backwards;
+}
+html[data-motion="full"] .plate .btn,
+html[data-motion="full"] .plate .navitem,
+html[data-motion="full"] .plate .navlinks a {
+  transition:
+    translate 200ms var(--ease-out-expo),
+    background-color 200ms ease,
+    border-color 200ms ease,
+    color 200ms ease,
+    box-shadow 200ms ease;
+}
+html[data-motion="full"] .plate .btn:not(:disabled):hover {
+  translate: 0 -2px;
+}
+html[data-motion="full"] .plate .btn.gold:not(:disabled):hover {
+  box-shadow:
+    inset 0 1px #fff9,
+    0 10px 30px #aa6f2466;
+}
+html[data-motion="full"] .plate .btn:not(:disabled):active {
+  translate: 0 0;
+}
+html[data-motion="full"] .plate .navitem:not(.sel):hover {
+  translate: 3px 0;
+  color: var(--pale);
+}
+html[data-motion="full"] .plate .navlinks a:hover {
+  color: var(--pale);
+}
+
+/* Keyboard focus inside plates keeps the site's gold ring, offset clear of borders. */
+.plate a:focus-visible,
+.plate button:focus-visible,
+.plate select:focus-visible,
+.plate input:focus-visible,
+.plate summary:focus-visible,
+.plate [tabindex]:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
