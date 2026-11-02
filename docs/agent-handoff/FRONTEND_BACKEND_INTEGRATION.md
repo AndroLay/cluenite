@@ -10,6 +10,8 @@ The connection page reports success only when chat is listening. Connecting, off
 
 Focused lifecycle regressions cover post-budget recovery, reset after subscription, and cancellation on stop/shutdown/revocation. Six headless phone scenarios cover chat status and explicit recheck. These are fixture checks; an actual long Twitch outage and natural token expiry remain separate production observations.
 
+**Twitch recovery deployment, 3 November 2026 WITA:** source `63ebdd2`, Render deploy `dep-dbkeqmjl550s73e8c300`, live at `2026-11-02T20:07:51.263282Z`. [Linux CI](https://github.com/AndroLay/cluenite/actions/runs/41515784059) and all 186 tests pass. Six local phone browser scenarios pass. Production checks pass: 8 anonymous HTTP checks and 32 browser checks, including twelve intercepted-account connection/recheck scenarios at 390/1280 px. There are zero script errors, missing resources or horizontal overflows. Intercepted account fixtures verify deployed UI behavior; they do not establish real production Twitch chat delivery or a natural provider outage. Rollback: `30e4738` / `dep-dbkeeurl550s73e749jg`.
+
 ## Switching unfinished cases
 
 From `/play`, selecting a different live case refreshes owned-session discovery and offers **Stop current case and start this one**, alongside continuation of the current case. The same confirmation is available when creating a co-op lobby from another case. Selecting the current case continues it. Partner sessions are never offered for stopping.
