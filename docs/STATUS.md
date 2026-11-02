@@ -2,6 +2,8 @@
 
 **Last synchronized:** 3 November 2026 (WITA).
 
+**Latest deployed frontend:** source `f136bee`, Render deploy `dep-dbkdqgrncjis73b7308g`, live at `2026-11-02T18:59:15Z`. Linux CI passes; 8 anonymous HTTP checks and 20 production browser page/viewport checks pass at 390/1280 px without script errors or missing resources. See the [release record](operations/FRONTEND_RELEASE_2026-11-03.md) for source, rollback and acceptance limits. Production OAuth completion and real Twitch/OBS/co-op are still unverified.
+
 **Source baseline:** the public [AndroLay/cluenite repository](https://github.com/AndroLay/cluenite) contains the current immersive frontend and backend integration release on `deploy/backend-2026-11-02`. The [3 November release record](operations/FRONTEND_RELEASE_2026-11-03.md) records the exact frozen source, checks and deployment outcome. Local changes made after that freeze belong to the next release. Earlier backend `8f06482` and its passing [Linux CI](https://github.com/AndroLay/cluenite/actions/runs/41484184252) remain a dated checkpoint in the [backend release record](operations/BACKEND_RELEASE_2026-11-02.md).
 
 **Frontend integration:** The latest immersive frontend is reconciled in the [handoff](agent-handoff/FRONTEND_BACKEND_INTEGRATION.md) and [dated evidence](evidence/frontend-integration-2026-11-02.md#latest-compatibility-pass---3-november-2026-wita). Saved sessions, owner/partner permissions, host lifecycle, scoped OBS, invitations/consent, private projections, shared proof and explicit rejoin are connected. Twenty-two focused unit tests and fifteen actual API/Socket.IO/PostgreSQL browser scenarios pass with synthetic accounts. Local checks do not establish real production Twitch or player acceptance.

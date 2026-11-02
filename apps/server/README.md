@@ -134,10 +134,12 @@ provider-directed handoff/denied consent, full frontend acceptance, production
 Twitch gameplay, restore rehearsal, and player playtests remain separate boundaries.
 
 The [backend release record](../../docs/operations/BACKEND_RELEASE_2026-11-02.md)
-tracks the private source repository, Render target, required credentials,
-deployment evidence, and recovery procedure. Backend `8f06482` is verified live
+tracks source publication, the Render target, required credentials,
+deployment evidence, and recovery procedure. Backend checkpoint `8f06482` was verified live
 with private PostgreSQL, five migrations, signed-out HTTP/browser checks,
 Render-edge rate limits and a five-minute smoke load. A production logical
 export restores into an isolated local cluster. Managed cloud PITR and live
 rollback remain unrehearsed; completed owner OAuth and real production gameplay
 remain open. Local fixture results are separate from real Twitch acceptance.
+
+The [3 November frontend release](../../docs/operations/FRONTEND_RELEASE_2026-11-03.md) is live on the same service at source `f136bee`; its anonymous production HTTP/browser checks pass. Runtime backend behavior and migrations are unchanged from the earlier backend checkpoint. Production Twitch authorization and real chat/OBS/co-op acceptance remain separate.
