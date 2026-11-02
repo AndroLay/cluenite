@@ -142,4 +142,6 @@ export restores into an isolated local cluster. Managed cloud PITR and live
 rollback remain unrehearsed; completed owner OAuth and real production gameplay
 remain open. Local fixture results are separate from real Twitch acceptance.
 
-The [3 November frontend release](../../docs/operations/FRONTEND_RELEASE_2026-11-03.md) is live on the same service at source `f136bee`; its anonymous production HTTP/browser checks pass. Runtime backend behavior and migrations are unchanged from the earlier backend checkpoint. Production Twitch authorization and real chat/OBS/co-op acceptance remain separate.
+The [3 November frontend release](../../docs/operations/FRONTEND_RELEASE_2026-11-03.md) was deployed on the same service at source `f136bee`; its anonymous production HTTP/browser checks pass. Runtime backend behavior and migrations are unchanged from the earlier backend checkpoint. Production Twitch authorization and real chat/OBS/co-op acceptance remain separate.
+
+Confirmed case switching is deployed at source `30e4738`. See [current status](../../docs/STATUS.md) for the exact running source and the [switching handoff](../../docs/agent-handoff/FRONTEND_BACKEND_INTEGRATION.md#switching-unfinished-cases) for stop/create ordering and retry behavior.

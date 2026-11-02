@@ -10,6 +10,8 @@ The confirmation explains that stopping is terminal and affects the co-op partne
 
 The focused checks cover ten request/retry regressions and five browser flows, including the phone layout and lost creation followed by another tab changing cases. Actual PostgreSQL/API verification is recorded separately in the dated local machine evidence. Real production account/gameplay acceptance retains its existing boundary.
 
+**Deployment, 3 November 2026 WITA:** source `30e4738`, Render deploy `dep-dbkeeurl550s73e749jg`, live at `2026-11-02T19:42:48.758933Z`. [Linux CI](https://github.com/AndroLay/cluenite/actions/runs/41512006219) passes. Ten focused unit tests, five browser scenarios and two real local API/PostgreSQL scenarios pass, including a committed stop with a lost response and a fresh co-op lobby. Eight anonymous production HTTP checks and twenty desktop/phone page checks pass with zero script errors or missing resources. This probe does not stop or create production account sessions. Rollback baseline: `f136bee` / `dep-dbkdqgrncjis73b7308g`.
+
 ## Latest immersive integration
 
 - `LiveCaseExperience.vue` is the mounted Q01/M01/C01 live presentation. `view=dashboard` opens its host panel immediately; ordinary session links open the scene. Finished rounds do not offer Restart.

@@ -2,7 +2,7 @@
 
 **Last synchronized:** 3 November 2026 (WITA).
 
-**Latest deployed frontend:** source `f136bee`, Render deploy `dep-dbkdqgrncjis73b7308g`, live at `2026-11-02T18:59:15Z`. Linux CI passes; 8 anonymous HTTP checks and 20 production browser page/viewport checks pass at 390/1280 px without script errors or missing resources. See the [release record](operations/FRONTEND_RELEASE_2026-11-03.md) for source, rollback and acceptance limits. Production OAuth completion and real Twitch/OBS/co-op are still unverified.
+**Latest deployed frontend:** source `30e4738`, Render deploy `dep-dbkeeurl550s73e749jg`, live at `2026-11-02T19:42:48.758933Z`. Confirmed case switching is available from Play and co-op creation. Linux CI passes; 8 anonymous HTTP and 20 desktop/phone production checks pass. The [integration handoff](agent-handoff/FRONTEND_BACKEND_INTEGRATION.md#switching-unfinished-cases) records the feature, retry coverage and rollback. Production account/gameplay acceptance remains separate from these anonymous checks.
 
 **Source baseline:** the public [AndroLay/cluenite repository](https://github.com/AndroLay/cluenite) contains the current immersive frontend and backend integration release on `deploy/backend-2026-11-02`. The [3 November release record](operations/FRONTEND_RELEASE_2026-11-03.md) records the exact frozen source, checks and deployment outcome. Local changes made after that freeze belong to the next release. Earlier backend `8f06482` and its passing [Linux CI](https://github.com/AndroLay/cluenite/actions/runs/41484184252) remain a dated checkpoint in the [backend release record](operations/BACKEND_RELEASE_2026-11-02.md).
 
