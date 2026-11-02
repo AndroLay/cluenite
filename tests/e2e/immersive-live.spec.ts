@@ -267,6 +267,26 @@ test("clears an invitation when logout is requested even if its response is lost
   await expect(page.getByRole("link", { name: "Continue co-op invitation", exact: true })).toHaveCount(0);
 });
 
+for (const status of ["reconnecting", "disconnected", "error", "revoked", "unrecognized", "connected"]) {
+  test(`reports the actual Twitch chat connection: ${status}`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    let chatStatus = status;
+    await page.route("**/api/me", route => route.fulfill({ json: { authenticated: true, profile: { login: "fixture_host", displayName: "Fixture Host" }, twitch: { connected: true, chatStatus }, csrfToken: "fixture-csrf" } }));
+    await page.goto(`${origin}/connect`);
+    if (status === "connected") {
+      await expect(page.getByRole("heading", { name: "You're connected", exact: true })).toBeVisible();
+    } else {
+      await expect(page.getByRole("heading", { name: "You're connected", exact: true })).toHaveCount(0);
+      if (status === "reconnecting") await expect(page.getByRole("heading", { name: "Reconnecting Twitch chat", exact: true })).toBeVisible();
+      else await expect(page.getByRole("link", { name: "Reconnect Twitch", exact: true })).toHaveAttribute("href", "/api/auth/twitch/start");
+      chatStatus = "connected";
+      await page.getByRole("button", { name: "Check again", exact: true }).click();
+      await expect(page.getByRole("heading", { name: "You're connected", exact: true })).toBeVisible();
+    }
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  });
+}
+
 test("runs distinct Pixi environments and freezes rendering when paused or motion is reduced", async ({ page }, info) => {
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.setViewportSize({ width: 1440, height: 900 });

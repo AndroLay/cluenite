@@ -91,6 +91,22 @@ const view = computed<OutcomeView>(() => {
         action: { label: "Reconnect Twitch", href: TWITCH_START },
       };
     }
+    if (state.chat === "connecting") {
+      return {
+        tone: "warn",
+        heading: "Reconnecting Twitch chat",
+        body: "You are signed in, but chat is not listening yet. Cluenite retries automatically. Use Check again to refresh this status, or reconnect your Twitch account.",
+        action: { label: "Reconnect Twitch", href: TWITCH_START },
+      };
+    }
+    if (state.chat !== "listening") {
+      return {
+        tone: state.chat === "error" ? "error" : "warn",
+        heading: state.chat === "unknown" ? "Twitch chat status is unknown" : "Twitch chat is not connected",
+        body: "You are signed in, but Cluenite has not confirmed that chat is listening. Your saved cases are kept. Reconnect Twitch, then check again before playing.",
+        action: { label: "Reconnect Twitch", href: TWITCH_START },
+      };
+    }
     return {
       tone: "ok",
       heading: "You're connected",
@@ -130,7 +146,11 @@ const view = computed<OutcomeView>(() => {
 
 const linkState = computed(() => {
   if (account.state.kind === "checking") return "wait";
-  if (connected.value) return account.state.kind === "signed-in" && account.state.chat === "revoked" ? "error" : "on";
+  if (connected.value && account.state.kind === "signed-in") {
+    if (account.state.chat === "listening") return "on";
+    if (account.state.chat === "connecting") return "wait";
+    return account.state.chat === "revoked" || account.state.chat === "error" ? "error" : "off";
+  }
   if (view.value.tone === "ok") return "on";
   if (view.value.tone === "error") return "error";
   return "off";

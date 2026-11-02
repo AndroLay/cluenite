@@ -2,6 +2,14 @@
 
 Updated 3 November 2026 WITA. The latest compatibility pass preserves the immersive frontend and local practice experiences. No deployment, dependency, migration, or backend API change is part of this frontend pass.
 
+## Twitch outage recovery
+
+Transient EventSub failures keep recovering after the first eight exponential retries: the existing single timer waits 60 seconds between subsequent attempts. Reconciliation does not reset the backoff, the counter is capped, and successful subscription restores the fast budget. Revocation, stopping/replacing a worker and shutdown cancel its recovery. No API contracts, token scopes, database migrations or dependencies change.
+
+The connection page reports success only when chat is listening. Connecting, offline, unknown, error and revoked states are explicit and offer **Reconnect Twitch**; **Check again** refreshes status without continuous polling. Browser sign-in alone is not chat readiness. Saved cases are retained.
+
+Focused lifecycle regressions cover post-budget recovery, reset after subscription, and cancellation on stop/shutdown/revocation. Six headless phone scenarios cover chat status and explicit recheck. These are fixture checks; an actual long Twitch outage and natural token expiry remain separate production observations.
+
 ## Switching unfinished cases
 
 From `/play`, selecting a different live case refreshes owned-session discovery and offers **Stop current case and start this one**, alongside continuation of the current case. The same confirmation is available when creating a co-op lobby from another case. Selecting the current case continues it. Partner sessions are never offered for stopping.
