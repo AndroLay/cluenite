@@ -10,7 +10,7 @@ export const SUBMISSION_FREEZE_AT = "2026-11-02T22:00:00Z";
 const API = "https://api.render.com/v1/";
 const REPOSITORY = "AndroLay/cluenite";
 const ORIGIN = "https://cluenite-app.onrender.com";
-const WAIT_MS = 15 * 60_000;
+const WAIT_MS = 8 * 60_000;
 const FREEZE_RESERVE_MS = WAIT_MS + 2 * 60_000;
 const ACTIVE = new Set([
   "created",
@@ -159,7 +159,7 @@ export async function deployRender({
         method: "POST",
       });
       throw new Error(
-        "Render deployment did not become live within 15 minutes and was canceled. Inspect its events before retrying.",
+        "Render deployment did not become live within 8 minutes and was canceled. Inspect its events before retrying.",
       );
     }
     await sleep(15_000);

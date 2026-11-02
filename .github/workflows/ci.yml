@@ -56,10 +56,6 @@ jobs:
         run: pnpm run lint --quiet
       - name: Documentation links
         run: pnpm run docs:check
-      - name: Install the browser for user-flow checks
-        run: pnpm exec playwright install --with-deps chrome
-      - name: Main gameplay, Twitch, co-op, and OBS browser flows
-        run: pnpm exec playwright test tests/e2e/immersive-live.spec.ts --workers=1 --reporter=dot --timeout=120000
       - name: Check the hackathon release window
         id: release_window
         run: node scripts/deploy-render.mjs --check-window

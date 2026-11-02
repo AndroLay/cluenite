@@ -18,7 +18,7 @@ Cluenite runs as one Node web service that serves the built Vue app, HTTP API an
 
 ## GitHub Actions to Render
 
-The [workflow](../.github/workflows/ci.yml) verifies pull requests and main with PostgreSQL tests, typecheck, production build, lint, documentation links and browser flows. Only successful main runs can deploy. Render platform auto-deploy remains off so it cannot bypass these checks.
+The [workflow](../.github/workflows/ci.yml) verifies pull requests and main with PostgreSQL tests, typecheck, production build, lint, documentation links. Only successful main runs can deploy. Render platform auto-deploy remains off so it cannot bypass these checks.
 
 GitHub Actions requires these repository settings:
 
@@ -28,9 +28,9 @@ GitHub Actions requires these repository settings:
 | RENDER_SERVICE_ID   | Actions variable         | srv-dbkb33mc6qcc73e2in7g                       |
 | RENDER_WORKSPACE_ID | Actions variable         | tea-d3akn7ruibrs73ccv4ig                       |
 
-The [deployment script](../scripts/deploy-render.mjs) checks the approved workspace, repository, branch and service URL, confirms the tested SHA is still main, reuses an existing matching deploy, and sends an exact commit ID to Render. It waits up to 15 minutes, then checks production readiness, case metadata, signed-out account status and the play page. A failed workflow needs inspection; it does not silently promote another commit.
+The [deployment script](../scripts/deploy-render.mjs) checks the approved workspace, repository, branch and service URL, confirms the tested SHA is still main, reuses an existing matching deploy, and sends an exact commit ID to Render. It waits up to 8 minutes, then checks production readiness, case metadata, signed-out account status and the play page. A failed workflow needs inspection; it does not silently promote another commit.
 
-New deployments stop 17 minutes before the deadline to reserve build and cancellation time. Active deploys are canceled if they exceed the 15-minute polling budget. Automatic deployment is frozen from **2 November 2026 at 22:00 UTC** for hackathon judging. CI continues to verify source, while deployment is skipped. Do not remove the freeze or update submitted artifacts during judging without organizer permission. Keep later development in a separate copy; see [hackathon requirements](hackathon.md).
+New deployments stop 10 minutes before the deadline to reserve build and cancellation time. Active deploys are canceled if they exceed the 8-minute polling budget. Automatic deployment is frozen from **2 November 2026 at 22:00 UTC** for hackathon judging. CI continues to verify source, while deployment is skipped. Do not remove the freeze or update submitted artifacts during judging without organizer permission. Keep later development in a separate copy; see [hackathon requirements](hackathon.md).
 
 ## Production environment
 

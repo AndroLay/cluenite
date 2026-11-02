@@ -92,7 +92,7 @@ describe("checked main deployment", () => {
       deployRender({
         ...f,
         env,
-        now: () => Date.parse(SUBMISSION_FREEZE_AT) - 16 * 60_000,
+        now: () => Date.parse(SUBMISSION_FREEZE_AT) - 9 * 60_000,
       }),
     ).rejects.toThrow("Insufficient time");
     expect(f.request).not.toHaveBeenCalled();
@@ -184,7 +184,7 @@ describe("checked main deployment", () => {
   });
   it("bounds waiting when a deploy never becomes live", async () => {
     const f = fixture({ terminal: "build_in_progress" });
-    await expect(deployRender({ ...f, env })).rejects.toThrow("15 minutes");
+    await expect(deployRender({ ...f, env })).rejects.toThrow("8 minutes");
     expect(f.mutations).toHaveLength(2);
     expect(f.mutations[1].url).toMatch(/\/deploys\/dep-test\/cancel$/);
   });
