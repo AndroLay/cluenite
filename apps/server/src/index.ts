@@ -52,7 +52,9 @@ const app = Fastify({
 });
 app.server.headersTimeout = 10_000;
 app.server.maxConnections = 512;
-registerHttpAdmission(app);
+registerHttpAdmission(app, {
+  renderEdge: config.nodeEnv === "production" && process.env.RENDER === "true",
+});
 const database = createDatabasePool(config.databaseUrl, app.log);
 const rounds = new PostgresRoundRepository(
   database,

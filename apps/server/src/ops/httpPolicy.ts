@@ -1,7 +1,55 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
+import { BlockList, isIP } from "node:net";
 import { createWorkBudget } from "./workBudget.js";
 
 export const HTTP_BODY_LIMIT = 16 * 1024;
+
+const renderProxyPeers = new BlockList();
+for (const [network, prefix] of [
+  ["10.0.0.0", 8],
+  ["172.16.0.0", 12],
+  ["192.168.0.0", 16],
+  ["127.0.0.0", 8],
+] as const)
+  renderProxyPeers.addSubnet(network, prefix, "ipv4");
+renderProxyPeers.addSubnet("fc00::", 7, "ipv6");
+renderProxyPeers.addSubnet("fe80::", 10, "ipv6");
+renderProxyPeers.addAddress("::1", "ipv6");
+
+function admissionIdentity(request: FastifyRequest, renderEdge: boolean) {
+  const peer = request.raw.socket.remoteAddress ?? request.ip;
+  const family = isIP(peer);
+  const trustedPeer =
+    family !== 0 &&
+    renderProxyPeers.check(peer, family === 4 ? "ipv4" : "ipv6");
+  const header = request.headers["cf-connecting-ip"];
+  const validHeader =
+    typeof header === "string" &&
+    header.length <= 45 &&
+    !header.includes("%") &&
+    isIP(header) !== 0;
+  if (renderEdge && trustedPeer && validHeader) {
+    // Render's public edge overwrites this single-IP header. Never trust XFF.
+    const address =
+      isIP(header) === 4 ? header : new URL(`http://[${header}]/`).hostname;
+    return {
+      key: `render:${address}`,
+      source: "render-edge",
+      reason: "validated-edge-header",
+    };
+  }
+  return {
+    key: `peer:${request.ip}`,
+    source: "peer",
+    reason: !renderEdge
+      ? "direct-mode"
+      : !trustedPeer
+        ? "untrusted-peer"
+        : header === undefined
+          ? "missing-edge-header"
+          : "invalid-edge-header",
+  };
+}
 
 export function createAdmission(
   max: number,
@@ -46,6 +94,7 @@ export function registerHttpAdmission(
     apiMax?: number;
     oauthMax?: number;
     maxInFlight?: number;
+    renderEdge?: boolean;
   } = {},
 ) {
   app.setErrorHandler((error, request, reply) => {
@@ -73,6 +122,7 @@ export function registerHttpAdmission(
   const oauth = createAdmission(options.oauthMax ?? 20, 60_000, options.now);
   const work = createWorkBudget(options.maxInFlight ?? 32);
   const readinessWork = createWorkBudget(2);
+  const reportedSources = new Set<string>();
   const admitted = new WeakMap<FastifyRequest, () => void>();
   const release = (request: FastifyRequest) => {
     admitted.get(request)?.();
@@ -103,9 +153,17 @@ export function registerHttpAdmission(
     }
     if (path !== "/api" && !path.startsWith("/api/")) return;
     reply.header("cache-control", "no-store");
-    const general = api.take(request.ip);
+    const identity = admissionIdentity(request, options.renderEdge === true);
+    if (options.renderEdge && !reportedSources.has(identity.reason)) {
+      reportedSources.add(identity.reason);
+      request.log.info(
+        { clientIpSource: identity.source, reason: identity.reason },
+        "HTTP rate limit source",
+      );
+    }
+    const general = api.take(identity.key);
     const specific = path.startsWith("/api/auth/twitch/")
-      ? oauth.take(request.ip)
+      ? oauth.take(identity.key)
       : null;
     const denied = !general.allowed
       ? general
