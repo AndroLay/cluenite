@@ -28,3 +28,5 @@ If the selected local API process uses the real Twitch adapter, stop only that p
 The [GitHub Actions workflow](../.github/workflows/ci.yml) installs the locked workspace, typechecks and builds it, runs tests, checks lint errors, and validates local documentation links. Consult the workflow file for the triggers and exact steps attached to a revision.
 
 Mocked tests check application behavior at local boundaries. They do not prove successful production OAuth, live Twitch chat, OBS Studio behavior, broad assistive-technology acceptance, player balance, or deployment state. Review [project status](STATUS.md) and [deployment](deployment.md) for those separate limits.
+
+The CI browser suite uses one worker and a bounded 120-second per-test budget. Its multi-step Pixi, screenshot and full-case scenarios exceed the local default 30-second budget on shared Linux runners. Assertions, gameplay checks and the explicit no-WebGL fallback remain enabled.
