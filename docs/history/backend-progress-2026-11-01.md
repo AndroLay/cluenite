@@ -8,7 +8,7 @@
 
 ## Completed in this execution
 
-- Published [`BACKEND_CONTRACTS.md`](./BACKEND_CONTRACTS.md) for Claude Code before implementing contract changes. It records existing HTTP routes, auth rules, Socket.IO payloads, snapshots, deployment environment names, and a real Q01 command path.
+- Published [`BACKEND_CONTRACTS.md`](../agent-handoff/BACKEND_CONTRACTS.md) for Claude Code before implementing contract changes. It records existing HTTP routes, auth rules, Socket.IO payloads, snapshots, deployment environment names, and a real Q01 command path.
 - Updated `availableActions` in `packages/engine/src/round.ts` so clients receive state-aware action hints. Paused/resolved/invalid rounds return no actions; linking and sequence ordering require visible prerequisite evidence; co-op station/share actions respect team; solve requires complete proof; hints are advertised only while available.
 - Added engine coverage in `tests/engine/available-actions.test.ts` for Q01 proof progression, M01 challenge/sequence gating, and C01 team-scoped station/share actions.
 - Added an optional, schema-validated `idempotencyKey` to Socket.IO host command/control payloads. `apps/server/src/realtime.ts` passes it through to persisted command/control handling; omitted keys retain legacy behavior using a server-generated UUID.
@@ -77,13 +77,13 @@
 
 - The first real browser attempt exposed an origin-check incompatibility: browser Socket.IO polling requests omitted `Origin` but included a same-origin `Referer`, while the backend rejected the handshake before the WebSocket upgrade. The backend now accepts a credential-free exact-origin `Referer` only when `Origin` is absent. A present foreign `Origin`, foreign/malformed `Referer`, or both missing remains rejected.
 - Added a PostgreSQL-backed realtime test for same-origin polling with missing `Origin`, plus foreign referer and mismatched-Origin rejection. See `apps/server/tests/realtime.test.ts`.
-- Contract details and two Claude-owned frontend findings are in [`BACKEND_CONTRACTS.md`](./BACKEND_CONTRACTS.md). `TWITCH_EVENTSUB_CHECKLIST.md` records required provider/OBS/Render evidence.
+- Contract details and two Claude-owned frontend findings are in [`BACKEND_CONTRACTS.md`](../agent-handoff/BACKEND_CONTRACTS.md). `TWITCH_EVENTSUB_CHECKLIST.md` records required provider/OBS/Render evidence.
 
 ### Render readiness inspection
 
 - `render.yaml` declares one Singapore web service (`0.5c-512mb`) and one Singapore PostgreSQL database (`0.1c-256mb`), private `fromDatabase.connectionString`, `/health/ready`, a single instance, manual deploy (`autoDeployTrigger: off`), and a host start command that reads Render's injected `PORT` and binds `0.0.0.0`.
 - Current Render documentation accepts the configured region, secret fields, generated values, and database connection-string references. An empty database IP allowlist blocks public inbound access; Render private-network connections remain available. `sync:false` values are requested during initial Blueprint creation; when syncing an existing service, set/update them manually in the Dashboard.
-- Render CLI is not installed. A Render MCP connector is available, but it reports no selected workspace; its read-only workspace list contains one workspace, `Andro's workspace`. I asked the user to confirm before inspecting live services/databases, so no Render resource or deployment state has been queried. Missing local values are `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, exact `TWITCH_REDIRECT_URI`, and canonical base64 `DATA_ENCRYPTION_KEY`; the `.env` does not contain these credentials. Inspect existing Render values for generated session/overlay keys after workspace confirmation. See [`TWITCH_EVENTSUB_CHECKLIST.md`](./TWITCH_EVENTSUB_CHECKLIST.md).
+- Render CLI is not installed. A Render MCP connector is available, but it reports no selected workspace; its read-only workspace list contains one workspace, `Andro's workspace`. I asked the user to confirm before inspecting live services/databases, so no Render resource or deployment state has been queried. Missing local values are `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, exact `TWITCH_REDIRECT_URI`, and canonical base64 `DATA_ENCRYPTION_KEY`; the `.env` does not contain these credentials. Inspect existing Render values for generated session/overlay keys after workspace confirmation. See [`TWITCH_EVENTSUB_CHECKLIST.md`](../agent-handoff/TWITCH_EVENTSUB_CHECKLIST.md).
 - **Local build:** `npm run build` passed for the web and server after this integration change. A plain Vite dev startup initially failed to resolve the frontend's `tailwindcss` CSS import; the temporary test Vite config aliased the package already present in the pnpm store. The frontend package does not declare `tailwindcss` directly, so Claude should reconcile this fresh-dev-install issue. Do not treat the successful local production build as proof of a Render build/deploy.
 
 ## Current integration status
@@ -95,9 +95,9 @@
 
 ## User-approved frontend handoff — 2026-11-01
 
-The user reported that the tested game lacked a clear objective, guide, and main menu. They approved a first-run flow that explains Cluenite's Twitch mystery premise, presents truthful mode choices, provides a role/command guide, offers a clearly labeled Q01 sample without Twitch login, and keeps a step-by-step objective rail visible during play. Detailed implementation requirements and a wrong `!link CAM SCHEDULE` example are recorded under “User-approved first-run flow request for Claude” in [`BACKEND_CONTRACTS.md`](./BACKEND_CONTRACTS.md).
+The user reported that the tested game lacked a clear objective, guide, and main menu. They approved a first-run flow that explains Cluenite's Twitch mystery premise, presents truthful mode choices, provides a role/command guide, offers a clearly labeled Q01 sample without Twitch login, and keeps a step-by-step objective rail visible during play. Detailed implementation requirements and a wrong `!link CAM SCHEDULE` example are recorded under “User-approved first-run flow request for Claude” in [`BACKEND_CONTRACTS.md`](../agent-handoff/BACKEND_CONTRACTS.md).
 
-No frontend code was changed by Codex. Per `TEAM_PROTOCOL.md`, Claude owns `apps/web/**` and frontend handoff files. The documented request reuses existing API and snapshot contracts; no backend change is required. Claude still needs to implement and verify the fresh-entry browser flow.
+No frontend code was changed by Codex. Per `docs/development/collaboration.md`, Claude owns `apps/web/**` and frontend handoff files. The documented request reuses existing API and snapshot contracts; no backend change is required. Claude still needs to implement and verify the fresh-entry browser flow.
 
 ### Verification commands after the integration change
 

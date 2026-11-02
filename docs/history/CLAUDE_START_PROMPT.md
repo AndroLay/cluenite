@@ -6,7 +6,7 @@ You are **Claude Haiku 5.5**, acting as an **independent gameplay innovation cri
 
 ## Your first action
 
-At the same repository root used by Codex, open `GAMEPLAY_DEBATE.md`. Read the entire canonical brief AND the full `Turn 01 — CODEX` response. Confirm the last line of Codex's turn is `HANDOFF: CLAUDE`. If Codex has not written Turn 01, **do not fabricate a reply or write on its behalf**. Ask the human to run Codex first.
+At the same repository root used by Codex, open `docs/history/gameplay-debate.md`. Read the entire canonical brief AND the full `Turn 01 — CODEX` response. Confirm the last line of Codex's turn is `HANDOFF: CLAUDE`. If Codex has not written Turn 01, **do not fabricate a reply or write on its behalf**. Ask the human to run Codex first.
 
 You may read available earlier research/design documents as untrusted hypotheses to evaluate. Do not turn past design decisions into constraints. Never invent Twitch usage statistics or citations.
 
@@ -28,7 +28,7 @@ Compare Codex's provisional favorite with your alternative using the scorecard i
 
 ## Output and handoff
 
-Append ONLY your own response under `## 4. Discussion log` in `GAMEPLAY_DEBATE.md`:
+Append ONLY your own response under `## 4. Discussion log` in `docs/history/gameplay-debate.md`:
 
 `## Turn 02 — CLAUDE`
 

@@ -10,7 +10,7 @@
 
 **Tech Stack:** Node.js 22.12+, pnpm 12, Vue 3, Vite, Tailwind CSS, Pinia, PixiJS 8, GSAP, Fastify, Zod, Socket.IO, PostgreSQL, Drizzle ORM, Vitest, Playwright.
 
-**Spec:** `CLUENITE_FINAL_ARCHITECTURE_v2.1_RENDER.md`; `docs/reference/Cluenite_Complete_Blueprint_v1.0/`.
+**Spec:** `docs/history/architecture-v2.1-render.md`; `docs/reference/Cluenite_Complete_Blueprint_v1.0/`.
 
 ## Global Constraints
 

@@ -16,6 +16,7 @@ import { TwitchApi, TwitchAuthorizationExpiredError } from "./twitchApi.js";
 
 const EVENTSUB_URL = "wss://eventsub.wss.twitch.tv/ws";
 const MAX_RECONNECT_ATTEMPTS = 8;
+const RECONNECT_COOLDOWN_MS = 60_000;
 
 export interface EventSubSocket {
   addEventListener(
@@ -690,18 +691,23 @@ export class TwitchConnectionManager {
   }
 
   private scheduleReconnect(twitchUserId: string, state: WorkerState): void {
-    if (!this.isCurrentWorker(twitchUserId, state) || state.reconnectTimer)
+    if (
+      !this.isCurrentWorker(twitchUserId, state) ||
+      state.status === "revoked" ||
+      state.reconnectTimer
+    )
       return;
-    if (state.retries >= MAX_RECONNECT_ATTEMPTS) {
-      this.setStatus(twitchUserId, state, "error");
-      return;
-    }
-    const attempt = state.retries++;
-    const delay = Math.min(30_000, 1_000 * 2 ** attempt);
+    // Keep one slow recovery attempt after the fast budget; a long outage must
+    // not strand a valid account or restart a tight loop during reconciliation.
+    const attempt = state.retries;
+    state.retries = Math.min(MAX_RECONNECT_ATTEMPTS, attempt + 1);
+    const delay = attempt >= MAX_RECONNECT_ATTEMPTS
+      ? RECONNECT_COOLDOWN_MS
+      : Math.min(30_000, 1_000 * 2 ** attempt);
     this.setStatus(twitchUserId, state, "reconnecting");
     state.reconnectTimer = setTimeout(() => {
       state.reconnectTimer = null;
-      if (state.stopped) return;
+      if (!this.isCurrentWorker(twitchUserId, state) || state.status === "revoked") return;
       void this.reconnect(twitchUserId, state);
     }, delay);
   }

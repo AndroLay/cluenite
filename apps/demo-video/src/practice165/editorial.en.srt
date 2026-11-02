@@ -1,0 +1,115 @@
+1
+00:00:00,000 --> 00:00:03,600
+One missing manuscript.
+Everyone has a theory.
+
+2
+00:00:03,600 --> 00:00:08,000
+Look closer.
+
+3
+00:00:08,000 --> 00:00:15,000
+Cluenite is a mystery game for streamers
+and their Twitch chat.
+
+4
+00:00:15,000 --> 00:00:22,000
+Try a Practice Case with scripted chat.
+Search the room and follow the clues.
+
+5
+00:00:22,000 --> 00:00:26,500
+The first theory points to the gardener.
+
+6
+00:00:26,500 --> 00:00:30,000
+One small problem: the windowsill was dry.
+
+7
+00:00:30,000 --> 00:00:35,000
+The key was signed out from 20:50 to 21:02.
+
+8
+00:00:35,000 --> 00:00:40,000
+The clock stopped at 20:52.
+Connect the records to test the alibi.
+
+9
+00:00:40,000 --> 00:00:45,000
+Put the evening in order.
+Does the timeline support the story?
+
+10
+00:00:47,000 --> 00:00:50,000
+The theft: 20:52. The alarm: 21:05.
+Thirteen minutes apart.
+
+11
+00:00:50,000 --> 00:00:56,000
+Challenge the locked-study claim
+with the key register.
+
+12
+00:00:56,000 --> 00:01:01,000
+Who is your suspect?
+Back the accusation with evidence.
+
+13
+00:01:01,000 --> 00:01:09,000
+Reconstruct the night.
+The alarm was her alibi.
+
+14
+00:01:09,000 --> 00:01:14,000
+Ada had the key before the alarm was raised.
+
+15
+00:01:14,000 --> 00:01:18,000
+The manuscript was sewn into
+the lining of her coat.
+
+16
+00:01:18,000 --> 00:01:21,333
+Quick Case: short cases and fast deductions.
+
+17
+00:01:21,333 --> 00:01:24,667
+Mystery Live: explore and rebuild the timeline.
+
+18
+00:01:24,667 --> 00:01:28,000
+Co-op: two stations, one shared conclusion.
+
+19
+00:01:28,000 --> 00:02:08,000
+Reserved for one real Twitch and gameplay run.
+Final recording pending; this slot is empty.
+
+20
+00:02:08,000 --> 00:02:13,633
+We used Codex to turn case rules
+into a deterministic engine.
+
+21
+00:02:13,633 --> 00:02:19,067
+A correct guess still needs
+the required evidence.
+
+22
+00:02:19,067 --> 00:02:24,533
+EventSub validates Twitch input
+before it reaches the live round.
+
+23
+00:02:24,533 --> 00:02:28,000
+Running the actual evidence-engine tests.
+
+24
+00:02:28,000 --> 00:02:35,000
+10 engine tests passed across 3 files.
+Actual source and test recording.
+
+25
+00:02:35,000 --> 00:02:45,000
+CLUENITE
+Every clue brings us closer to the truth.

@@ -10,6 +10,7 @@ import {
   type EventSubSocket,
 } from "../../apps/server/src/twitch/connectionManager.js";
 import type { TwitchApi } from "../../apps/server/src/twitch/twitchApi.js";
+import { TwitchAuthorizationExpiredError } from "../../apps/server/src/twitch/twitchApi.js";
 
 class FakeSocket implements EventSubSocket {
   private readonly handlers = new Map<
@@ -59,6 +60,84 @@ function eventSubMessage(
 }
 
 describe("Twitch EventSub connection lifecycle", () => {
+  function outageFixture() {
+    const account: DecryptedTwitchAccount = {
+      credentialVersion: "outage-version",
+      identity: { id: "1971641", login: "cluenitehost", displayName: "Cluenite Host" },
+      accessToken: "fixture-access", refreshToken: "fixture-refresh", scopes: ["user:read:chat"],
+      tokenExpiresAt: new Date(Date.now() + 3_600_000),
+    };
+    const sessions = {
+      loadTwitchAccount: vi.fn(async () => account),
+      markTokenValidated: vi.fn(async () => true),
+      markTwitchRevoked: vi.fn(async () => true),
+      listActiveTwitchUserIds: vi.fn(async () => [account.identity.id]),
+    };
+    const validateToken = vi.fn<TwitchApi["validateToken"]>(async () => { throw new Error("Temporary Twitch outage"); });
+    const api = { validateToken, subscribeChat: vi.fn(async () => undefined), refreshToken: vi.fn(async () => { throw new TwitchAuthorizationExpiredError(); }) };
+    const sockets: FakeSocket[] = [];
+    const manager = new TwitchConnectionManager(api as unknown as TwitchApi, sessions as unknown as SessionStore, {} as PostgresRoundRepository, () => {
+      const socket = new FakeSocket(); sockets.push(socket); return socket;
+    });
+    return { manager, sockets, sessions, validateToken };
+  }
+
+  async function exhaustFastRetries(manager: TwitchConnectionManager) {
+    await manager.startUser("1971641");
+    for (const delay of [1000, 2000, 4000, 8000, 16000, 30000, 30000, 30000]) await vi.advanceTimersByTimeAsync(delay);
+  }
+
+  it("recovers after the fast retry budget with one cooldown timer and resets backoff after subscribing", async () => {
+    vi.useFakeTimers();
+    const { manager, sockets, validateToken } = outageFixture();
+    try {
+      await exhaustFastRetries(manager);
+      expect(validateToken).toHaveBeenCalledTimes(9);
+      expect(manager.statusForUser("1971641")).toBe("reconnecting");
+      await manager.startAll();
+      await vi.advanceTimersByTimeAsync(59_999);
+      expect(validateToken).toHaveBeenCalledTimes(9);
+      validateToken.mockImplementation(async () => ({ client_id: "fixture", user_id: "1971641", login: "cluenitehost", scopes: ["user:read:chat"], expires_in: 3600 }));
+      await vi.advanceTimersByTimeAsync(1);
+      expect(sockets).toHaveLength(1);
+      sockets[0]!.send(eventSubMessage("session_welcome", { session: { id: "recovered", keepalive_timeout_seconds: 10 } }));
+      await flushMicrotasks();
+      expect(manager.statusForUser("1971641")).toBe("connected");
+      sockets[0]!.close(1006);
+      await vi.advanceTimersByTimeAsync(999);
+      expect(sockets).toHaveLength(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(sockets).toHaveLength(2);
+    } finally { await manager.shutdown(); vi.useRealTimers(); }
+  });
+
+  it.each(["stop", "shutdown"])("cancels the outage cooldown on %s", async action => {
+    vi.useFakeTimers();
+    const { manager, validateToken } = outageFixture();
+    try {
+      await exhaustFastRetries(manager);
+      if (action === "stop") await manager.stopUser("1971641"); else await manager.shutdown();
+      await vi.advanceTimersByTimeAsync(180_000);
+      expect(validateToken).toHaveBeenCalledTimes(9);
+      expect(manager.statusForUser("1971641")).toBe("disconnected");
+    } finally { await manager.shutdown(); vi.useRealTimers(); }
+  });
+
+  it("does not keep retrying a revoked authorization after a cooldown", async () => {
+    vi.useFakeTimers();
+    const { manager, sessions, validateToken } = outageFixture();
+    try {
+      await exhaustFastRetries(manager);
+      validateToken.mockImplementation(async () => { throw new TwitchAuthorizationExpiredError(); });
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(sessions.markTwitchRevoked).toHaveBeenCalledOnce();
+      expect(manager.statusForUser("1971641")).toBe("revoked");
+      const calls = validateToken.mock.calls.length;
+      await vi.advanceTimersByTimeAsync(180_000);
+      expect(validateToken).toHaveBeenCalledTimes(calls);
+    } finally { await manager.shutdown(); vi.useRealTimers(); }
+  });
+
   it("migrates consecutive planned reconnects without resubscribing, then recovers from an unexpected loss", async () => {
     const account: DecryptedTwitchAccount = {
       credentialVersion: "test-version",

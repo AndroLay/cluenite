@@ -9,6 +9,7 @@ export default [
       "**/node_modules/**",
       "**/.pnpm-store/**",
       "**/.cache/**",
+      "apps/demo-video/**",
       "docs/reference/Cluenite_Complete_Blueprint_v1.0/**",
     ],
   },

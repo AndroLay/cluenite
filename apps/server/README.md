@@ -6,7 +6,7 @@ processed inputs, session events, overlay credentials, and the realtime outbox.
 The deterministic game rules stay in `packages/engine` and authored case data
 stays in `packages/cases`.
 
-Last synchronized: 2 November 2026. Use English for documentation, feedback, authored content, comments, tests, and development instructions. See [local setup](../../HOW_TO_RUN.md), [status](../../docs/STATUS.md), and [API contracts](../../docs/agent-handoff/BACKEND_CONTRACTS.md).
+Last synchronized: 2 November 2026. Use English for documentation, feedback, authored content, comments, tests, and development instructions. See [local setup](../../docs/development/local-setup.md), [status](../../docs/STATUS.md), and [API contracts](../../docs/agent-handoff/BACKEND_CONTRACTS.md).
 
 ## Local run
 
@@ -33,7 +33,9 @@ three Twitch application values.
   `TWITCH_REDIRECT_URI` together. OAuth requests only `user:read:chat`.
 - In production, `PUBLIC_ORIGIN` must use HTTPS. The callback must use that
   exact origin and `/api/auth/twitch/callback`; update the Twitch application
-  registration when the actual Render URL is assigned. Local split-origin
+  registration for the assigned production URL. The initial Render callback is
+  `https://cluenite-app.onrender.com/api/auth/twitch/callback`; completed production
+  owner authorization remains pending. Local split-origin
   Vite/API development remains supported.
 - `SESSION_SIGNING_SECRET` and `OVERLAY_TOKEN_SIGNING_KEY` must each contain at
   least 32 UTF-8 bytes; use cryptographically random values.
@@ -128,10 +130,20 @@ two-channel C01 proof/final reveal, and Q01 gameplay/reload in actual OBS
 were verified separately on 2 November. See the latest
 [backend progress](../../docs/agent-handoff/BACKEND_PROGRESS.md) for scope,
 cleanup, and preserved failed harness assertions. Natural expiry, an actual
-provider-directed handoff/denied consent, full frontend acceptance, Render
-deployment/recovery, and player playtests remain separate boundaries.
+provider-directed handoff/denied consent, full frontend acceptance, production
+Twitch gameplay, restore rehearsal, and player playtests remain separate boundaries.
 
 The [backend release record](../../docs/operations/BACKEND_RELEASE_2026-11-02.md)
-tracks the private source repository, Render target, required credentials,
-deployment evidence, and recovery procedure. Local test results are separate
-from real Twitch or production acceptance.
+tracks source publication, the Render target, required credentials,
+deployment evidence, and recovery procedure. Backend checkpoint `8f06482` was verified live
+with private PostgreSQL, five migrations, signed-out HTTP/browser checks,
+Render-edge rate limits and a five-minute smoke load. A production logical
+export restores into an isolated local cluster. Managed cloud PITR and live
+rollback remain unrehearsed; completed owner OAuth and real production gameplay
+remain open. Local fixture results are separate from real Twitch acceptance.
+
+The [3 November frontend release](../../docs/operations/FRONTEND_RELEASE_2026-11-03.md) was deployed on the same service at source `f136bee`; its anonymous production HTTP/browser checks pass. Runtime backend behavior and migrations are unchanged from the earlier backend checkpoint. Production Twitch authorization and real chat/OBS/co-op acceptance remain separate.
+
+Confirmed case switching is deployed at source `30e4738`. See [current status](../../docs/STATUS.md) for the exact running source and the [switching handoff](../../docs/agent-handoff/FRONTEND_BACKEND_INTEGRATION.md#switching-unfinished-cases) for stop/create ordering and retry behavior.
+
+Twitch outage recovery is deployed at source `63ebdd2`: after eight fast retries, one 60-second timer continues recovery until success. Revocation, stop/replacement and shutdown cancel retry. The connection page distinguishes account sign-in from chat listening and offers reconnect/recheck actions. See [current status](../../docs/STATUS.md) and the [recovery handoff](../../docs/agent-handoff/FRONTEND_BACKEND_INTEGRATION.md#twitch-outage-recovery).

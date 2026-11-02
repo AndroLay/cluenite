@@ -13,3 +13,4 @@ test-results/
 *.tsbuildinfo
 .DS_Store
 Cluenite-source-*.zip
+*.log

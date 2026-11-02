@@ -27,11 +27,11 @@ services:
       - key: TWITCH_REDIRECT_URI
         sync: false
       - key: SESSION_SIGNING_SECRET
-        generateValue: true
+        sync: false
       - key: DATA_ENCRYPTION_KEY
-        generateValue: true
+        sync: false
       - key: OVERLAY_TOKEN_SIGNING_KEY
-        generateValue: true
+        sync: false
       - key: LOG_LEVEL
         value: info
 

@@ -1,0 +1,28 @@
+{
+  "seconds":175,
+  "voice":"bm_george",
+  "license":"Kokoro-82M Apache-2.0; original script; synthetic English narration, no voice clone",
+  "cues":[
+    {"id":"hook","start":0.7,"end":6.7,"text":"A missing manuscript. Three suspects. Which story survives the evidence?"},
+    {"id":"what","start":7.5,"end":14.6,"text":"This is Cluenite: a mystery game for streamers and their Twitch communities. Your viewers become investigators."},
+    {"id":"search","start":15.5,"end":23.5,"text":"First, try the practice case. Search the study, follow the scripted chat, and inspect what you find."},
+    {"id":"wrong","start":24.1,"end":30.0,"text":"Mud points to the gardener. But the dry windowsill tells a different story."},
+    {"id":"link","start":30.7,"end":37.6,"text":"Connect the key register and stopped clock. The box opened while the key was out."},
+    {"id":"time","start":38.4,"end":44.3,"text":"Put the evening in order. The manuscript vanished thirteen minutes before the alarm."},
+    {"id":"challenge","start":45.0,"end":50.6,"text":"Challenge the clerk's locked-room claim with the signed key record. Her alibi breaks."},
+    {"id":"reveal","start":51.6,"end":61.5,"text":"Ada took it, then raised the alarm. Reconstruct the night: the manuscript was hidden in her coat. A conclusion earned from the clues."},
+    {"id":"modes","start":63.5,"end":69.5,"text":"Quick Case for a short break. Mystery Live for deeper cases. Co-op for two communities."},
+    {"id":"live","start":70.7,"end":77.4,"text":"Now, a recorded real Twitch round: The Gallery Shadow. What triggered the alarm?"},
+    {"id":"cam","start":78.0,"end":85.4,"text":"A viewer sends the look command in Twitch chat. EventSub delivers it, and the overlay reveals camera evidence: robot R zero seven."},
+    {"id":"schedule","start":86.2,"end":93.0,"text":"Another command opens the maintenance schedule. The same robot. The same gallery. The same time."},
+    {"id":"proof","start":93.8,"end":101.7,"text":"Link the two records, then submit the answer. The server checks the required proof before it accepts the solution."},
+    {"id":"robot","start":102.4,"end":108.9,"text":"The cleaning robot crossed the alarm sensor. Real chat commands changed the shared game state."},
+    {"id":"codex","start":110.7,"end":118.5,"text":"Cluenite began as a working prototype. We used Codex to extend the game rules and backend, with concrete tasks and checks."},
+    {"id":"engine","start":119.2,"end":127.3,"text":"First, turn authored case rules into typed evidence requirements. Then enforce them in a deterministic engine: guessing the right answer is not enough."},
+    {"id":"cases","start":128.0,"end":136.0,"text":"That engine checks timelines and contradictions in Mystery Live. In co-op, private station evidence must be shared to unlock the joint proof."},
+    {"id":"integration","start":136.8,"end":145.0,"text":"Next, connect authorized Twitch messages through EventSub. Normalize each command, reject duplicates, and persist accepted input and the resulting state in PostgreSQL."},
+    {"id":"sync","start":145.8,"end":154.3,"text":"Socket updates carry that state to the host and read-only overlay. Reconnect logic restores a missed update, keeping every screen on the same investigation."},
+    {"id":"tests","start":155.1,"end":166.1,"text":"Finally, run the engine tests and inspect the results. These ten tests passed across three files. Separate owner-authorized Twitch recordings verify real command delivery and the Quick Case and co-op reveals."},
+    {"id":"end","start":168.0,"end":173.8,"text":"Cluenite. Every clue brings us closer to the truth."}
+  ]
+}

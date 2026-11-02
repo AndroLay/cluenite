@@ -1,4 +1,4 @@
-name: Backend and production build
+name: Application checks
 
 on:
   push:
@@ -51,3 +51,5 @@ jobs:
         run: pnpm run test --reporter=dot
       - name: Lint errors
         run: pnpm run lint --quiet
+      - name: Documentation links
+        run: pnpm run docs:check

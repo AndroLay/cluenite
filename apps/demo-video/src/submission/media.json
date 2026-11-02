@@ -1,0 +1,10 @@
+{
+  "S1": {"file": null, "required": true, "description": "Continuous actual Q01 overlay in the stream context"},
+  "S2": {"file": null, "required": true, "description": "Actual Twitch !look CAM and corresponding Q01 evidence"},
+  "S3": {"file": null, "required": true, "description": "Actual Twitch schedule, link and supported Q01 verdict"},
+  "S4": {"file": null, "required": true, "description": "Authenticated dashboard and server-backed M01"},
+  "S5": {"file": null, "required": true, "description": "Actual M01 timeline correction and theory challenge"},
+  "S6": {"file": "footage/S6-responsive.mp4", "required": false, "description": "Original signed-out local responsive fallback; no co-op claim", "variant": "responsive"},
+  "S7": {"file": null, "required": false, "description": "Actual source and test result; principal Codex thread recording remains a submission evidence gap"},
+  "S8": {"file": null, "required": true, "description": "Continuous recorded Q01 reveal from S3"}
+}

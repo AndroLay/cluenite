@@ -26,9 +26,7 @@ import {
   type QuickCaseView,
 } from "./quickCase/viewModel";
 import { M01_PREVIEW_SNAPSHOT } from "./mysteryLive/previewSnapshot";
-const MysteryLiveBoard = defineAsyncComponent(
-  () => import("./components/MysteryLiveBoard.vue"),
-);
+const LiveCaseExperience = defineAsyncComponent(() => import("./components/LiveCaseExperience.vue"));
 
 // Query parameters:
 //   (none)                        Mystery Live sample investigation
@@ -44,9 +42,8 @@ const sessionId: string | null =
     ? rawSession
     : null;
 const liveMode = rawSession !== null;
-const dashboardMode =
-  sessionId !== null && !obsMode && params.get("view") === "dashboard";
 const quickSurface = params.get("view") === "quick";
+const immersiveSurface = !obsMode && (liveMode || !quickSurface);
 const quickHref = sessionId
   ? `/?session=${encodeURIComponent(sessionId)}&view=quick`
   : "/?view=quick";
@@ -70,6 +67,10 @@ const connection = ref<ConnectionState>(
   liveMode && sessionId !== null ? "connecting" : "disconnected",
 );
 const twitchConnection = ref<ConnectionStatus | null>(null);
+const sending = ref(false);
+const pendingRetry = ref(false);
+const restartRevision = ref(0);
+const accessError = ref<string | null>(null);
 const notice = ref<{ tone: "ok" | "warn"; text: string } | null>(null);
 const muted = ref(!siteSettings.soundOn);
 const sfx = createSfxPlayer();
@@ -93,6 +94,9 @@ const currentView = computed<QuickCaseView | null>(() => {
 const currentMysterySnapshot = computed<RoundSnapshot | null>(() =>
   liveMode ? liveSnapshot.value : M01_PREVIEW_SNAPSHOT,
 );
+// Team B can read its station and manage its own overlay; browser game commands belong to the owner.
+const isSessionOwner = computed(() => liveSnapshot.value !== null
+  && (liveSnapshot.value.caseMode !== "coop" || liveSnapshot.value.team === "A"));
 const mysterySurface = computed(
   () =>
     !obsMode &&
@@ -103,6 +107,7 @@ const mysterySurface = computed(
 );
 const connectionBanner = computed<string | null>(() => {
   if (!liveMode || sessionError !== null) return null;
+  if (accessError.value) return accessError.value;
   if (connection.value === "connecting") return "Connecting to server…";
   if (connection.value === "disconnected")
     return "Disconnected from server — reconnecting";
@@ -139,14 +144,15 @@ function applySnapshot(snapshot: RoundSnapshot): void {
 function describe(result: CommandResult): string {
   const missing =
     result.missing.length > 0 ? ` Missing: ${result.missing.join(", ")}.` : "";
-  return `${result.code}: ${result.message}${missing}`;
+  return `${result.message}${missing}`;
 }
 
 function showResult(result: CommandResult | null): void {
+  pendingRetry.value = client?.hasPending() ?? false;
   if (result === null) {
     notice.value = {
       tone: "warn",
-      text: "Not connected. The command was not sent.",
+      text: "No confirmation was received. The outcome may be unknown. Retry the same action to check it safely before choosing a different action.",
     };
     return;
   }
@@ -166,6 +172,8 @@ const client: RoundClient | null =
             connection.value = state;
             if (state !== "connected") twitchConnection.value = null;
           },
+          onAccessError: (message) => { accessError.value = message; },
+          onRestartAccepted: (revision) => { restartRevision.value = Math.max(restartRevision.value, revision); },
           onConnectionStatus: (status) => {
             twitchConnection.value = status;
           },
@@ -175,13 +183,21 @@ const client: RoundClient | null =
     : null;
 
 async function sendCommand(text: string): Promise<void> {
-  if (client === null) return;
-  showResult(await client.submit(text));
+  if (client === null || sending.value || readOnly || !isSessionOwner.value) return;
+  sending.value = true;
+  try { showResult(await client.submit(text)); } finally { sending.value = false; }
 }
 
 async function sendControl(action: SessionControl["action"]): Promise<void> {
-  if (client === null) return;
-  showResult(await client.control(action));
+  if (client === null || sending.value || readOnly || !isSessionOwner.value) return;
+  sending.value = true;
+  try { showResult(await client.control(action)); } finally { sending.value = false; }
+}
+
+async function retryLastAction(): Promise<void> {
+  if (!client || sending.value) return;
+  sending.value = true;
+  try { showResult(await client.retryPending()); } finally { sending.value = false; }
 }
 
 // Preview handlers change presentation state only. Nothing here checks proof, and the
@@ -307,10 +323,10 @@ onBeforeUnmount(() => {
 <template>
   <main
     class="shell"
-    :class="{ 'is-obs': obsMode }"
+    :class="{ 'is-obs': obsMode, 'is-immersive': immersiveSurface }"
   >
     <header
-      v-if="!obsMode"
+      v-if="!obsMode && !immersiveSurface"
       class="topbar"
     >
       <a
@@ -375,31 +391,38 @@ onBeforeUnmount(() => {
         class="banner"
         role="status"
       >
-        {{ connectionBanner }}
+        {{ connectionBanner }} <a v-if="accessError" href="/play">Open saved sessions</a>
       </p>
-      <DashboardPanel
-        v-if="dashboardMode"
-        :session-id="sessionId ?? ''"
-        :connection="connection"
-        :paused="liveView?.paused ?? false"
+      <div v-if="pendingRetry" class="banner" role="status">
+        The last action has no confirmed response. Check it safely before choosing another action.
+        <button type="button" class="retry-action" :disabled="sending || connection !== 'connected'" @click="retryLastAction">{{ sending ? 'Checking…' : 'Retry last action' }}</button>
+      </div>
+      <LiveCaseExperience
+        v-if="immersiveSurface && currentMysterySnapshot"
+        :snapshot="currentMysterySnapshot"
+        :interactive="liveMode && isSessionOwner && connection === 'connected' && !sending && !pendingRetry"
+        :initial-host-panel="liveMode && params.get('view') === 'dashboard'"
+        :restart-revision="restartRevision"
+        :preview="!liveMode"
+        :hosting="isSessionOwner"
+        :muted="muted"
         :notice="notice"
         @command="sendCommand"
         @control="sendControl"
-      />
-
-      <MysteryLiveBoard
-        v-if="mysterySurface && currentMysterySnapshot"
-        :snapshot="currentMysterySnapshot"
-        :interactive="liveMode && connection === 'connected' && !readOnly"
-        :connection="connection"
-        :notice="notice"
-        @command="sendCommand"
-      />
+        @toggle-mute="onToggleMute"
+      >
+        <template v-if="liveMode" #connection><TwitchConnectionStatus v-if="connection === 'connected'" :status="twitchConnection" :pending="twitchConnection === null" /></template>
+        <template v-if="liveMode && sessionId" #host>
+          <DashboardPanel :session-id="sessionId" :connection="connection" :busy="sending || pendingRetry" :host="isSessionOwner" :paused="liveView?.paused ?? false" :phase="liveSnapshot?.phase ?? null" :notice="notice" @command="sendCommand" @control="sendControl" />
+        </template>
+      </LiveCaseExperience>
       <QuickCaseOverlay
-        v-else-if="currentView"
+        v-else-if="currentView && !immersiveSurface"
         :view="currentView"
         :muted="muted"
         :obs="obsMode"
+        :mode="liveSnapshot?.caseMode ?? 'quick'"
+        :team="liveSnapshot?.team ?? null"
         :notice="notice"
         @inspect="onInspect"
         @link="onLink"
@@ -427,6 +450,8 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.retry-action { min-height: 44px; margin: 8px; padding: 8px 14px; color: var(--case-paper); background: var(--case-panel); border: 1px solid var(--case-rule); border-radius: 4px; font: inherit; cursor: pointer; }
+.retry-action:focus-visible { outline: 2px solid var(--case-amber); outline-offset: 3px; }
 /* Scene first: the evidence board is the main column. From 1240px the masthead becomes a compact
    spine beside it; below that the masthead stacks above the board. OBS mode drops all chrome. */
 .shell {
@@ -776,4 +801,14 @@ h1 {
     font-size: 0.6875rem;
   }
 }
+
+.shell.is-immersive { height: 100dvh; min-height: 0; width: 100%; padding: 0; gap: 0; display: block; overflow: hidden; }
+.shell.is-immersive > .board { height: 100%; width: 100%; max-width: none; display: flex; flex-direction: column; gap: 0; overflow: hidden; }
+.shell.is-immersive > .board > .banner { flex-shrink: 0; max-height: 140px; overflow: auto; margin: 0; border-radius: 0; font-size: 12px; padding: 10px 18px; }
+.shell.is-immersive :deep(.game-workspace) { flex: 1; height: auto; min-height: 0; }
+.shell.is-immersive :deep(.workspace-panel-content .dash) { width: 100%; margin: 0; padding: 0; min-width: 0; background: none; border: 0; }
+.shell.is-immersive :deep(.dash-head) { flex-wrap: wrap; }
+.shell.is-immersive :deep(.dash-form) { flex-wrap: wrap; }
+:global(body:has(.shell.is-immersive)) { overflow: hidden; }
+
 </style>

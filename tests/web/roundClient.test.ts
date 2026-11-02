@@ -22,7 +22,18 @@ const socketFixture = vi.hoisted(() => {
     timeout() {
       return socket;
     },
-    close: vi.fn(),
+    disconnect() {
+      socket.connected = false;
+      return socket;
+    },
+    removeAllListeners() {
+      listeners.clear();
+      return socket;
+    },
+    close() {
+      socket.connected = false;
+      return socket;
+    },
   };
   return { socket, listeners, calls };
 });
@@ -45,6 +56,7 @@ function baseSnapshot(): RoundSnapshot {
 }
 
 describe("round client realtime recovery", () => {
+  let closeClient: (() => void) | undefined;
   beforeEach(() => {
     socketFixture.listeners.clear();
     socketFixture.calls.length = 0;
@@ -53,6 +65,8 @@ describe("round client realtime recovery", () => {
   });
 
   afterEach(() => {
+    closeClient?.();
+    closeClient = undefined;
     vi.unstubAllGlobals();
   });
 
@@ -68,11 +82,12 @@ describe("round client realtime recovery", () => {
     }));
     vi.stubGlobal("fetch", fetchMock);
 
-    connectRound("round-client-test", {
+    const client = connectRound("round-client-test", {
       onSnapshot,
       onConnection: vi.fn(),
       onConnectionStatus,
     });
+    closeClient = client.close;
 
     expect(socketFixture.listeners.has("connect")).toBe(true);
     emitToClient("connect");
@@ -81,9 +96,14 @@ describe("round client realtime recovery", () => {
     );
     expect(join).toBeDefined();
     const acknowledgeJoin = join?.args[1] as
-      ((ack: { ok: boolean; snapshot?: RoundSnapshot }) => void) | undefined;
-    acknowledgeJoin?.({ ok: true, snapshot: initial });
-    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+      | ((
+          error: Error | null,
+          ack: { ok: boolean; snapshot?: RoundSnapshot },
+        ) => void)
+      | undefined;
+    acknowledgeJoin?.(null, { ok: true, snapshot: initial });
+    expect(onSnapshot).toHaveBeenLastCalledWith(initial);
+    expect(fetchMock).not.toHaveBeenCalled();
 
     emitToClient("connection:status", {
       provider: "twitch",
@@ -110,6 +130,13 @@ describe("round client realtime recovery", () => {
     expect(onSnapshot).toHaveBeenLastCalledWith(
       expect.objectContaining({ revision: 1, stage: "connect" }),
     );
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    const latest = { ...initial, revision: 4 };
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ snapshot: latest }),
+    });
 
     emitToClient("session:delta", {
       sessionId: initial.sessionId,
@@ -119,25 +146,15 @@ describe("round client realtime recovery", () => {
       cues: [],
       eventId: "550e8400-e29b-41d4-a716-446655440001",
     });
-    expect(socketFixture.calls).toContainEqual({
-      event: "session:resync",
-      args: [{ sessionId: initial.sessionId, currentRevision: 1 }],
-    });
-
-    const latest = { ...initial, revision: 4 };
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ snapshot: latest }),
-    });
-    emitToClient("session:resync-required", {
-      sessionId: initial.sessionId,
-      expectedRevision: 2,
-      serverRevision: 4,
-    });
     await vi.waitFor(() =>
       expect(onSnapshot).toHaveBeenLastCalledWith(
         expect.objectContaining({ revision: 4 }),
       ),
+    );
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/sessions/round-client-test/snapshot",
+      expect.objectContaining({ credentials: "same-origin" }),
     );
   });
 });

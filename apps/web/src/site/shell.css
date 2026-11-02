@@ -1,0 +1,389 @@
+/* Game-style shell for the menu pages: the frame, the living backdrop, and shared building blocks (headings,
+   cards, buttons, chips, notices). Everything is scoped under .gs so the plate screens keep their own rules. */
+
+.gs {
+  --gs-sans: "Cluenite Inter", Inter, "Segoe UI", system-ui, sans-serif;
+  --gs-serif: var(--site-serif, "Cluenite EB Garamond", Georgia, serif);
+  --gs-text: #eadfca;
+  --gs-muted: #c6b59b;
+  --gs-gold: #e7bf7c;
+  --gs-gold-hi: #f5d59e;
+  --gs-line: #ffffff17;
+  --gs-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  color: var(--gs-text);
+  font-family: var(--gs-sans);
+  font-size: 15px;
+  line-height: 1.55;
+}
+.gs :focus-visible {
+  outline: 2px solid var(--gs-gold-hi);
+  outline-offset: 3px;
+}
+/* Plain links take the text colour; buttons drawn as links keep their own. */
+.gs a:not(.gs-btn) {
+  color: inherit;
+}
+
+/* Backdrop: a warm gradient first, then the living scene fades in over it. */
+.gs-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(55% 70% at 78% 38%, #3b2414 0%, transparent 72%),
+    radial-gradient(40% 50% at 18% 80%, #24150c 0%, transparent 70%),
+    #0c0806;
+}
+.gs-scene {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1100ms ease-out;
+}
+.gs-scene.is-ready {
+  opacity: 1;
+}
+.gs-scene canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.gs-veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.gs[data-dim="soft"] .gs-veil {
+  background:
+    linear-gradient(90deg, #0b0705f2 0%, #0b0705d9 30%, #0b070566 54%, #0b070500 72%),
+    linear-gradient(0deg, #0b0705cc 0%, #0b070500 30%);
+}
+.gs[data-dim="medium"] .gs-veil {
+  background:
+    linear-gradient(90deg, #0b0705e6 0%, #0b0705b3 45%, #0b070566 100%),
+    linear-gradient(0deg, #0b0705e0 0%, #0b070540 60%);
+}
+.gs[data-dim="strong"] .gs-veil {
+  background: linear-gradient(180deg, #0b0705d9, #0b0705f0);
+}
+
+/* Top bar */
+.gs-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 64px;
+  padding: 0 clamp(16px, 4vw, 44px);
+  background: linear-gradient(180deg, #0b0705f0, #0b0705b8);
+  border-bottom: 1px solid var(--gs-line);
+  backdrop-filter: blur(8px);
+}
+.gs-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  color: #f6ead6;
+  font-family: var(--gs-serif);
+  font-size: 25px;
+  text-decoration: none;
+}
+.gs-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #a77a48;
+  border-radius: 50%;
+  color: var(--gs-gold);
+  font-size: 17px;
+}
+.gs-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid #ffffff22;
+  border-radius: 999px;
+  color: var(--gs-text);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    border-color 160ms ease-out,
+    color 160ms ease-out;
+}
+.gs-back:hover {
+  border-color: var(--gs-gold);
+  color: var(--gs-gold-hi);
+}
+.gs-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.gs-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  max-width: 240px;
+  padding: 0 14px;
+  border: 1px solid #ffffff22;
+  border-radius: 999px;
+  background: #ffffff08;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.gs-status-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gs-dot {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #b8a58a;
+  box-shadow: 0 0 0 3px #ffffff10;
+}
+.gs-status[data-tone="on"] .gs-dot {
+  background: #9fd49a;
+  box-shadow: 0 0 10px #9fd49a99;
+}
+.gs-status[data-tone="wait"] .gs-dot {
+  background: #f0b45e;
+}
+.gs-status[data-tone="off"] .gs-dot {
+  background: #e7bf7c;
+}
+.gs-status[data-tone="error"] .gs-dot {
+  background: #e59a8a;
+}
+.gs-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid #ffffff22;
+  border-radius: 50%;
+  background: #ffffff08;
+  color: var(--gs-text);
+  cursor: pointer;
+  transition:
+    border-color 160ms ease-out,
+    color 160ms ease-out;
+}
+.gs-icon-btn:hover {
+  border-color: var(--gs-gold);
+  color: var(--gs-gold-hi);
+}
+.gs-main {
+  width: min(1240px, 100% - 2 * clamp(16px, 4vw, 44px));
+  margin: 0 auto;
+  padding: clamp(24px, 4vw, 52px) 0 72px;
+}
+
+/* Type. Rules are written as `.gs .x` so they outrank the site-wide `.site h1` and `.site p` rules. */
+.gs .gs-eyebrow {
+  margin: 0;
+  color: #d9aa62;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.gs .gs-h1 {
+  margin: 6px 0 0;
+  color: #f7ecd9;
+  font-family: var(--gs-serif);
+  font-size: clamp(38px, 4.6vw, 62px);
+  font-weight: 500;
+  line-height: 1.04;
+  letter-spacing: -0.015em;
+  text-shadow: 0 4px 26px #000c;
+}
+.gs .gs-h2 {
+  margin: 0;
+  color: #f4e6cf;
+  font-family: var(--gs-serif);
+  font-size: clamp(26px, 2.6vw, 34px);
+  font-weight: 500;
+  line-height: 1.12;
+}
+.gs .gs-h3 {
+  margin: 0;
+  color: #f4e6cf;
+  font-family: var(--gs-sans);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+.gs .gs-lede {
+  max-width: 640px;
+  margin: 12px 0 0;
+  color: #dccdb3;
+  font-size: 17px;
+  line-height: 1.6;
+  text-shadow: 0 2px 14px #000;
+}
+.gs .gs-muted {
+  color: var(--gs-muted);
+}
+/* Site-wide code chips must not overflow narrow cards here. */
+.gs code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Surfaces */
+.gs-card {
+  border: 1px solid #7a563044;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #1d140ee6, #120c08ef);
+  box-shadow:
+    0 22px 50px #000b,
+    inset 0 1px #ffffff0d;
+  backdrop-filter: blur(6px);
+}
+
+/* Buttons */
+.gs-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 22px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font: 600 15px/1.1 var(--gs-sans);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    transform 180ms var(--gs-ease),
+    box-shadow 220ms ease-out,
+    border-color 180ms ease-out,
+    color 180ms ease-out,
+    background-color 180ms ease-out;
+}
+.gs-btn--gold {
+  color: #1a1008;
+  background: linear-gradient(180deg, #f2d199, #c99a52);
+  box-shadow:
+    0 12px 28px #c99a5233,
+    inset 0 1px #ffffff80;
+}
+.gs-btn--gold:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 16px 34px #c99a5255,
+    inset 0 1px #ffffff80;
+}
+.gs-btn--ghost {
+  border-color: #ffffff2e;
+  background: #ffffff0a;
+  color: #f3e6cf;
+}
+.gs-btn--ghost:hover {
+  border-color: var(--gs-gold);
+  color: var(--gs-gold-hi);
+}
+.gs-btn--lg {
+  min-height: 56px;
+  padding: 0 28px;
+  font-size: 16px;
+}
+.gs-btn:disabled,
+.gs-btn[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+.gs-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 2px 10px;
+  border: 1px solid #ffffff24;
+  border-radius: 999px;
+  color: #dccdb3;
+  font-size: 12px;
+  font-weight: 600;
+}
+.gs-chip[data-tone="gold"] {
+  border-color: #d9aa6266;
+  color: #f0cd92;
+}
+.gs-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 14px 18px;
+  border: 1px solid #d9aa6266;
+  border-radius: 12px;
+  background: #2a1b11d9;
+  color: #f1e2c8;
+}
+.gs-notice[data-tone="error"] {
+  border-color: #e59a8a66;
+  background: #2b1512d9;
+}
+.gs-notice p {
+  flex: 1 1 260px;
+  margin: 0;
+}
+.gs-spin {
+  animation: gs-spin 900ms linear infinite;
+}
+@keyframes gs-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+/* Entrances: content rises in with a short stagger. Set --i on [data-enter] elements to order them. */
+html[data-motion="full"] .gs [data-enter] {
+  animation: gs-enter 700ms var(--gs-ease) both;
+  animation-delay: calc(var(--i, 0) * 70ms + 60ms);
+}
+@keyframes gs-enter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .gs-bar {
+    gap: 8px;
+  }
+  .gs-brand span:last-child {
+    display: none;
+  }
+  .gs-status {
+    max-width: 150px;
+  }
+  .gs[data-dim="soft"] .gs-veil {
+    background: linear-gradient(180deg, #0b070599 0%, #0b0705e6 46%, #0b0705f5 100%);
+  }
+}

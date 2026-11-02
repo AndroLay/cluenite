@@ -19,7 +19,7 @@
 
 ## Select the local target and register Twitch
 
-- [x] Select the browser origin and API port using [local setup](../../HOW_TO_RUN.md): `http://localhost:5173` and API port 10000. Vite targets the same API; case proxy and signed-in Socket.IO checks pass within the boundaries below.
+- [x] Select the browser origin and API port using [local setup](../development/local-setup.md): `http://localhost:5173` and API port 10000. Vite targets the same API; case proxy and signed-in Socket.IO checks pass within the boundaries below.
 - [x] Verify the selected owned runtime, database readiness, and current built HTML/JavaScript/CSS. New hashed assets now resolve after rebuilds; exact served/disk comparisons and the HTTP regression pass. Recheck ownership before any future process operation.
 - [x] Select the exact local callback `http://localhost:10000/api/auth/twitch/callback`. A callback through Vite instead would need its exact browser-origin URL and registration. Do not invent a future Render hostname.
 - [x] Follow Twitch's [app registration instructions](https://dev.twitch.tv/docs/authentication/register-app): the owner completed registration and supplied the resulting credentials privately.
@@ -57,7 +57,7 @@
 - [x] Process authorized real commands from both channels. Confirm independent station proof, shared `JOINT_PROOF_B17`, actual provider-message attribution/channel origins, and final RESOLVED/reveal revision 9 with canonical `TEST_BUOY` verdict (`B17` is an accepted alias). Duplicate-delivery behavior remains fixture evidence.
 - [x] Revoke and rejoin the real secondary: while absent, reject the primary's joint verdict durably with `NOT_AVAILABLE / TEAM_REQUIRED`; after actual reauthorization and explicit rejoin, preserve proof, keep old sessions revoked, and complete through a new real chat message. Primary remains ACTIVE during co-host loss; solo-owner loss pauses its own round.
 
-Use the exact [API and Socket.IO contracts](BACKEND_CONTRACTS.md). Frontend station previews and disabled lobby actions do not constitute a live co-op UI; Haiku owns that integration.
+Use the exact [API and Socket.IO contracts](BACKEND_CONTRACTS.md). Current lobby/consent/live-workstation/rejoin wiring is described in the [integration handoff](FRONTEND_BACKEND_INTEGRATION.md) with [dated local browser evidence](../evidence/frontend-integration-2026-11-02.md). Sessionless station previews remain samples. Opus owns current design; synthetic-provider integration checks do not replace real-provider or visual/player acceptance.
 
 ## OBS Studio Browser Source
 

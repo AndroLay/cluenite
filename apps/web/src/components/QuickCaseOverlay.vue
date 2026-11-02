@@ -13,17 +13,23 @@ import {
   type QuickStage,
 } from "../quickCase/viewModel";
 import CaseScene from "./CaseScene.vue";
+import SiteIcon from "../site/SiteIcon.vue";
+import BroadcastOverlay from "./BroadcastOverlay.vue";
 
 const props = withDefaults(
   defineProps<{
     view: QuickCaseView;
     muted: boolean;
     obs?: boolean;
+    mode?: "quick" | "mystery" | "coop";
+    team?: "A" | "B" | null;
     // Result of the last command, from the server. The overlay never invents its own.
     notice?: { tone: "ok" | "warn"; text: string } | null;
   }>(),
   {
     obs: false,
+    mode: "quick",
+    team: null,
     notice: null,
   },
 );
@@ -171,7 +177,7 @@ const linkSummary = computed(() => {
     .filter((clue) => clue.status === "linked")
     .map((clue) => clue.id);
   return pair.length >= 2
-    ? `✓ Linked: ${pair.join(" ↔ ")}`
+    ? `Linked: ${pair.join(" and ")}`
     : "No link recorded yet.";
 });
 // Says why verdicts are off, instead of only dimming the buttons.
@@ -218,7 +224,7 @@ const chosenVerdict = computed(() => {
 // Preview data is not server-verified, so the stamp must not claim a real solve.
 const stampLabel = computed(() => {
   const base =
-    props.view.source === "simulation" ? "◇ Sample verdict" : "✓ Solved";
+    props.view.source === "simulation" ? "Sample verdict" : "Solved";
   return chosenVerdict.value ? `${base}: ${chosenVerdict.value.label}` : base;
 });
 
@@ -407,7 +413,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <BroadcastOverlay v-if="obs" :view="view" :elapsed="elapsedLabel" :position="obsPosition" :scale="obsScale" :mode="mode" :team="team" />
   <section
+    v-else
     class="qc"
     :class="{ 'is-obs': props.obs }"
     :data-pos="props.obs ? obsPosition : undefined"
@@ -636,6 +644,7 @@ onBeforeUnmount(() => {
             class="qc-linked"
             :class="{ 'is-pending': linkedCount < 2 }"
           >
+            <SiteIcon v-if="linkedCount >= 2" name="link" />
             {{ linkSummary }}
           </p>
           <button
@@ -704,7 +713,7 @@ onBeforeUnmount(() => {
           <span
             ref="stampEl"
             class="qc-stamp"
-          >{{ stampLabel }}</span>
+          ><SiteIcon :name="view.source === 'simulation' ? 'scales' : 'check'" /> {{ stampLabel }}</span>
           <button
             v-if="!props.obs"
             type="button"

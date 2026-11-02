@@ -1,7 +1,7 @@
 import type { RoundSnapshot } from "@cluenite/contracts";
 
 // A viewer-safe sample of the authored M01 case. It contains only facts that the
-// server may already publish; it is always labeled as a simulation in the UI.
+// server may already publish; it is always labeled as a sample in the UI.
 export const M01_PREVIEW_SNAPSHOT: RoundSnapshot = {
   protocolVersion: 1,
   revision: 3,

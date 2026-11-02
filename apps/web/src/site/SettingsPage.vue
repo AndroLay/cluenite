@@ -1,127 +1,187 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import GameShell from "./GameShell.vue";
+import SiteIcon from "./SiteIcon.vue";
 import { reduceMotion, resetSiteSettings, siteSettings } from "./settings";
+import { playUi } from "./uiSound";
 
-type MotionChoice = "system" | "reduced" | "full";
+// Settings saved in this browser: sound, motion, and text size. Each choice applies at once and previews itself.
 
-// One radio group instead of a switch: "follow the system" is a third state, not an on/off value.
-const motionChoice = computed<MotionChoice>({
-  get() {
-    if (siteSettings.reduceMotion === null) return "system";
-    return siteSettings.reduceMotion ? "reduced" : "full";
-  },
-  set(value) {
-    siteSettings.reduceMotion = value === "system" ? null : value === "reduced";
-  },
-});
+type MotionChoice = "system" | "full" | "reduced";
+const motionChoice = computed<MotionChoice>(() =>
+  siteSettings.reduceMotion === null ? "system" : siteSettings.reduceMotion ? "reduced" : "full",
+);
+const note = ref("");
 
-const restoreNote = ref("");
-
-function toggleSound(): void {
-  siteSettings.soundOn = !siteSettings.soundOn;
+function setSound(on: boolean): void {
+  siteSettings.soundOn = on;
+  if (on) playUi("success");
 }
 
-function restoreDefaults(): void {
+function setMotion(choice: MotionChoice): void {
+  siteSettings.reduceMotion = choice === "system" ? null : choice === "reduced";
+  playUi("hover");
+}
+
+function setText(size: "standard" | "large"): void {
+  siteSettings.textSize = size;
+  playUi("hover");
+}
+
+function restore(): void {
   resetSiteSettings();
-  restoreNote.value = "Defaults restored: sound on, motion follows your system, standard text.";
+  note.value = "Back to the defaults: sound on, motion follows your system, standard text.";
 }
 </script>
 
 <template>
-  <div class="settings">
-    <header class="site-section-head">
-      <h1 id="settings-title">Settings</h1>
-      <p class="site-prose">
-        Settings are saved in this browser only. Changes apply to the site pages right away.
-      </p>
+  <GameShell :focus-x="0.97" :focus-y="0.3" dim="strong">
+    <header class="st-head">
+      <p class="gs-eyebrow" data-enter style="--i: 0">Settings</p>
+      <h1 class="gs-h1" data-enter style="--i: 1">Make it comfortable</h1>
+      <p class="gs-lede" data-enter style="--i: 2">Changes apply right away and stay in this browser.</p>
     </header>
 
-    <section class="site-section settings-block" aria-labelledby="sound-title">
-      <div class="settings-row">
-        <div class="settings-copy">
-          <h2 id="sound-title">Sound</h2>
-          <p>
-            Room tone and case sounds. The case view reads this setting when it opens, so reopen it
-            after you change the switch.
-          </p>
+    <div class="st-grid">
+      <section class="st-card gs-card" aria-labelledby="st-sound" data-enter style="--i: 3">
+        <span class="st-icon"><SiteIcon :name="siteSettings.soundOn ? 'sound-on' : 'sound-off'" size="26px" /></span>
+        <h2 id="st-sound" class="gs-h3">Sound and music</h2>
+        <p>Room sounds, music, and the clicks in the menus.</p>
+        <div class="st-seg" role="group" aria-labelledby="st-sound">
+          <button type="button" :aria-pressed="siteSettings.soundOn" @click="setSound(true)">On</button>
+          <button type="button" :aria-pressed="!siteSettings.soundOn" @click="setSound(false)">Off</button>
         </div>
-        <button
-          type="button"
-          class="switch"
-          role="switch"
-          aria-labelledby="sound-title"
-          :aria-checked="siteSettings.soundOn ? 'true' : 'false'"
-          @click="toggleSound"
-        >
-          <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
-          <span class="switch-label">{{ siteSettings.soundOn ? "On" : "Off" }}</span>
+        <button type="button" class="gs-btn gs-btn--ghost st-test" :disabled="!siteSettings.soundOn" @click="playUi('success')">
+          <SiteIcon name="play" /> Play a test sound
         </button>
-      </div>
-    </section>
+      </section>
 
-    <section class="site-section settings-block" aria-labelledby="motion-title">
-      <h2 id="motion-title">Motion</h2>
-      <p class="site-prose settings-note">
-        Controls transitions on the site pages. The case view is not changed by this setting yet.
-      </p>
-      <p class="settings-current" role="status">
-        Right now: {{ reduceMotion ? "reduced" : "full" }} motion.
-      </p>
-      <div class="settings-options" role="radiogroup" aria-labelledby="motion-title">
-        <label class="settings-option">
-          <input v-model="motionChoice" type="radio" name="motion" value="system" />
-          <span class="settings-option-text">
-            <span class="settings-option-title">Follow my system</span>
-            <span class="settings-option-note">Uses the reduced-motion setting from the operating system.</span>
-          </span>
-        </label>
-        <label class="settings-option">
-          <input v-model="motionChoice" type="radio" name="motion" value="reduced" />
-          <span class="settings-option-text">
-            <span class="settings-option-title">Reduce motion</span>
-            <span class="settings-option-note">Turns off transitions on the site pages.</span>
-          </span>
-        </label>
-        <label class="settings-option">
-          <input v-model="motionChoice" type="radio" name="motion" value="full" />
-          <span class="settings-option-text">
-            <span class="settings-option-title">Full motion</span>
-            <span class="settings-option-note">Keeps transitions on the site pages, even when the system asks for less.</span>
-          </span>
-        </label>
-      </div>
-    </section>
+      <section class="st-card gs-card" aria-labelledby="st-motion" data-enter style="--i: 4">
+        <span class="st-icon"><SiteIcon name="sparkle" size="26px" /></span>
+        <h2 id="st-motion" class="gs-h3">Motion</h2>
+        <p>Rain, lamps, and moving characters. Reduced motion keeps every scene still.</p>
+        <div class="st-seg" role="group" aria-labelledby="st-motion">
+          <button type="button" :aria-pressed="motionChoice === 'system'" @click="setMotion('system')">My system</button>
+          <button type="button" :aria-pressed="motionChoice === 'full'" @click="setMotion('full')">Full</button>
+          <button type="button" :aria-pressed="motionChoice === 'reduced'" @click="setMotion('reduced')">Reduced</button>
+        </div>
+        <p class="st-now">Now: {{ reduceMotion ? "reduced motion" : "full motion" }}</p>
+      </section>
 
-    <section class="site-section settings-block" aria-labelledby="text-title">
-      <h2 id="text-title">Text size</h2>
-      <p class="site-prose settings-note">Sets the base text size on the site pages.</p>
-      <div class="settings-options" role="radiogroup" aria-labelledby="text-title">
-        <label class="settings-option">
-          <input v-model="siteSettings.textSize" type="radio" name="text-size" value="standard" />
-          <span class="settings-option-text">
-            <span class="settings-option-title">Standard</span>
-            <span class="settings-option-note">The default size used across the site.</span>
-          </span>
-        </label>
-        <label class="settings-option">
-          <input v-model="siteSettings.textSize" type="radio" name="text-size" value="large" />
-          <span class="settings-option-text">
-            <span class="settings-option-title">Large</span>
-            <span class="settings-option-note">Makes text on the site pages 12.5% bigger.</span>
-          </span>
-        </label>
-      </div>
-    </section>
+      <section class="st-card gs-card" aria-labelledby="st-text" data-enter style="--i: 5">
+        <span class="st-icon"><SiteIcon name="book" size="26px" /></span>
+        <h2 id="st-text" class="gs-h3">Text size</h2>
+        <p>Larger text on the site pages.</p>
+        <div class="st-seg" role="group" aria-labelledby="st-text">
+          <button type="button" :aria-pressed="siteSettings.textSize === 'standard'" @click="setText('standard')">
+            Standard
+          </button>
+          <button type="button" :aria-pressed="siteSettings.textSize === 'large'" @click="setText('large')">Large</button>
+        </div>
+        <p class="st-preview">The clock stopped at 20:52.</p>
+      </section>
+    </div>
 
-    <section class="site-section settings-block" aria-labelledby="defaults-title">
-      <h2 id="defaults-title">Defaults</h2>
-      <p class="site-prose settings-note">Sound on, motion follows your system, standard text.</p>
-      <div class="settings-actions">
-        <button type="button" class="site-button site-button--quiet" @click="restoreDefaults">
-          Restore defaults
-        </button>
-        <p v-if="restoreNote" class="settings-current" role="status">{{ restoreNote }}</p>
-      </div>
-    </section>
-  </div>
+    <div class="st-foot" data-enter style="--i: 6">
+      <button type="button" class="gs-btn gs-btn--ghost" @click="restore"><SiteIcon name="restart" /> Restore defaults</button>
+      <p class="gs-muted" role="status">{{ note }}</p>
+    </div>
+    <p class="st-later" data-enter style="--i: 7">
+      Coming later: high contrast, color-blind markers, and captions for sounds. The OBS overlay keeps its own look.
+    </p>
+  </GameShell>
 </template>
+
+<style scoped>
+.st-head {
+  margin-bottom: 26px;
+}
+.st-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.st-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 22px;
+}
+.st-card > p {
+  margin: 0;
+  color: #cdbca1;
+  font-size: 14px;
+}
+.st-icon {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  margin-bottom: 6px;
+  border: 1px solid #a77a48;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #4a3220, #1a110b);
+  color: var(--gs-gold);
+}
+.st-seg {
+  display: flex;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 4px;
+  border: 1px solid #ffffff1f;
+  border-radius: 999px;
+  background: #0b0705cc;
+}
+.st-seg button {
+  flex: 1;
+  min-height: 42px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--gs-text);
+  font: 600 14px/1 var(--gs-sans);
+  cursor: pointer;
+  transition: background-color 200ms ease-out;
+}
+.st-seg button[aria-pressed="true"] {
+  background: linear-gradient(180deg, #f2d199, #c99a52);
+  color: #1a1008;
+}
+.st-test {
+  margin-top: 8px;
+}
+.st-now {
+  margin: 4px 0 0;
+  color: #bfae94;
+  font-size: 13px;
+}
+.st-card > p.st-preview {
+  margin: 10px 0 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #e9decb;
+  color: #2a1d12;
+  font-family: var(--gs-serif);
+  font-size: 1.25em;
+}
+.st-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin-top: 22px;
+}
+.st-foot p {
+  margin: 0;
+}
+.st-later {
+  margin-top: 14px;
+  color: #bfae94;
+  font-size: 13px;
+}
+@media (max-width: 900px) {
+  .st-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+</style>
