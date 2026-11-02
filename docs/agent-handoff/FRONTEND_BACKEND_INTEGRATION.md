@@ -8,6 +8,8 @@ The host panel keeps its actual connection state while sending an action, with a
 
 These scoped refinements complement the existing retry, invitation, owner/partner, mobile, keyboard/dialog and reduced-motion coverage. They do not establish universal accessibility or player acceptance.
 
+**Usability deployment, 3 November 2026 WITA:** source `cafb3cf`, deploy `dep-dbkf353m8hqs73b948t0`, live at `2026-11-02T20:25:57.837018Z`. [Linux CI](https://github.com/AndroLay/cluenite/actions/runs/41518638043) passes, including 186 tests. All 26 main-flow browser scenarios passed before the final clipboard guard; its controlled clipboard/revoke regression passed again after that guard. Final web typecheck/lint pass. 8 production HTTP checks and 20 desktop/phone browser checks pass, with zero script errors, missing resources or horizontal overflow. Intercepted account fixtures verify UI states, not live Twitch delivery. Rollback: `63ebdd2` / `dep-dbkeqmjl550s73e8c300`. **Release decision: READY WITH RISKS** for this scoped update; full player and accessibility acceptance remain separate.
+
 ## Twitch outage recovery
 
 Transient EventSub failures keep recovering after the first eight exponential retries: the existing single timer waits 60 seconds between subsequent attempts. Reconciliation does not reset the backoff, the counter is capped, and successful subscription restores the fast budget. Revocation, stopping/replacing a worker and shutdown cancel its recovery. No API contracts, token scopes, database migrations or dependencies change.
