@@ -270,7 +270,9 @@ test("clears an invitation when logout is requested even if its response is lost
 test("requires copying the current OBS link after replacement or revocation", async ({ page }) => {
   const id = "obs-copy-guidance";
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.addInitScript(() => Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async () => undefined } }));
+  await page.addInitScript(() => Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: () => new Promise<void>(resolve => {
+    (window as unknown as { finishFixtureCopy: () => void }).finishFixtureCopy = resolve;
+  }) } }));
   await page.route("**/api/me", route => route.fulfill({ json: { authenticated: true, profile: { login: "fixture_host", displayName: "Fixture Host" }, twitch: { connected: true, chatStatus: "connected" }, csrfToken: "fixture-csrf" } }));
   await page.route(/\/api\/sessions(?:\?.*)?$/, route => route.fulfill({ json: { sessions: [{ sessionId: id, caseId: Q01_GALLERY_SHADOW.id, title: Q01_GALLERY_SHADOW.title, phase: "READY", revision: 1, team: "A", role: "host", needsRejoin: false, updatedAt: "2026-11-03T00:00:00Z" }] } }));
   await page.route(`**/api/sessions/${id}/overlay-credential`, route => route.fulfill({ json: route.request().method() === "DELETE" ? { revoked: true } : { url: `${origin}/?mode=obs&session=${id}#overlay=${"A".repeat(43)}`, expiresAt: "2026-11-04T00:00:00Z" } }));
@@ -281,10 +283,13 @@ test("requires copying the current OBS link after replacement or revocation", as
   await expect(next).toBeDisabled();
   await page.getByRole("button", { name: "Create overlay link", exact: true }).click();
   await page.getByRole("button", { name: "Copy link", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Revoke link", exact: true })).toBeDisabled();
+  await page.evaluate(() => (window as unknown as { finishFixtureCopy: () => void }).finishFixtureCopy());
   await expect(next).toBeEnabled();
   await page.getByRole("button", { name: "Replace overlay link", exact: true }).click();
   await expect(next).toBeDisabled();
   await page.getByRole("button", { name: "Copy link", exact: true }).click();
+  await page.evaluate(() => (window as unknown as { finishFixtureCopy: () => void }).finishFixtureCopy());
   await expect(next).toBeEnabled();
   await page.getByRole("button", { name: "Revoke link", exact: true }).click();
   await expect(next).toBeDisabled();

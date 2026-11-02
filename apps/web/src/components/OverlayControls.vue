@@ -52,8 +52,16 @@ async function issue(): Promise<void> {
 }
 async function copy(): Promise<void> {
   if (!url || busy.value) return;
-  try { await window.navigator.clipboard.writeText(url); note.value = "Overlay link copied."; emit("copied"); }
-  catch { note.value = "Allow clipboard access in your browser, then copy again."; }
+  const run = generation;
+  const link = url;
+  busy.value = true;
+  try {
+    await window.navigator.clipboard.writeText(link);
+    if (run !== generation || url !== link) return;
+    note.value = "Overlay link copied."; emit("copied");
+  } catch {
+    if (run === generation) note.value = "Allow clipboard access in your browser, then copy again.";
+  } finally { if (run === generation) busy.value = false; }
 }
 async function revoke(): Promise<void> {
   if (busy.value || account.state.kind !== "signed-in") return;
