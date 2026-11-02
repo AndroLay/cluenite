@@ -23,7 +23,7 @@ The API reports liveness at `/health/live` and database readiness at
 present; HTML OAuth navigation redirects to `/connect?result=unavailable`. A real Twitch connection also requires `TWITCH_ADAPTER=twitch` and the
 three Twitch application values.
 
-`GET /api/cases` is registered inside the auth-configured module and returns `404` when the signing/encryption keys are absent. `CLUENITE_DEV_CONTROLS` provides no host-login bypass. The web UI does not yet issue OBS credentials or complete co-op invitations.
+`GET /api/cases` is registered inside the auth-configured module and returns `404` when the signing/encryption keys are absent. `CLUENITE_DEV_CONTROLS` provides no host-login bypass. Frontend credential/invitation workflow acceptance is tracked separately in the frontend handoff.
 
 ## Twitch and security settings
 
@@ -91,7 +91,7 @@ Stopping a round with no investigation records `CANCELLED`; stopping after
 accepted evidence or analysis records `PARTIAL`. Neither state reveals the
 case solution or presents an incomplete run as a successful solve.
 
-Socket handshakes require the configured origin, with an exact same-origin `Referer` fallback only when `Origin` is absent. Optional socket keys support exact retries; the current web round client omits them and uses non-retry-safe compatibility handling.
+Socket handshakes require the configured origin, with an exact same-origin `Referer` fallback only when `Origin` is absent. Optional socket keys support exact retries; clients should preserve the original key for retries. Requests without keys retain compatibility handling and cannot claim exact retry identity.
 
 ## Verification
 
@@ -110,11 +110,14 @@ evidence, and joint proof. Database
 integration tests create a unique temporary schema inside the local `cluenite`
 database and drop only that schema on completion. The fixture rejects remote hosts and other database names. The tests use mocked Twitch
 HTTP and WebSocket boundaries. Real broadcaster OAuth, authenticated host/overlay
-APIs, one operator-triggered token refresh, and refreshed-credential EventSub
-recovery were verified separately on 2 November. Natural-expiry scheduling,
-real post-refresh chat/proof, account revocation/reauthorization, two-channel
-co-op, OBS gameplay, Render deployment, and player playtests remain separate
-acceptance gates.
+APIs, operator-triggered and clock-accelerated scheduled token refresh,
+post-refresh real chat/proof, account revocation/reauthorization/rejoin,
+two-channel C01 proof/final reveal, and Q01 gameplay/reload in actual OBS
+were verified separately on 2 November. See the latest
+[backend progress](../../docs/agent-handoff/BACKEND_PROGRESS.md) for scope,
+cleanup, and preserved failed harness assertions. Natural expiry, an actual
+provider-directed handoff/denied consent, full frontend acceptance, Render
+deployment/recovery, and player playtests remain separate boundaries.
 
 The [backend release record](../../docs/operations/BACKEND_RELEASE_2026-11-02.md)
 tracks the private source repository, Render target, required credentials,
