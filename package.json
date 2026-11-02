@@ -14,7 +14,8 @@
     "format:check": "prettier --check .",
     "test": "vitest run --passWithNoTests",
     "test:e2e": "playwright test",
-    "docs:check": "node scripts/check-docs.mjs"
+    "docs:check": "node scripts/check-docs.mjs",
+    "deploy:render": "node scripts/deploy-render.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",
@@ -24,5 +25,7 @@
     "prettier": "^3.6.2",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
-  }
+  },
+  "description": "A Twitch-native cooperative mystery game with evidence-driven gameplay, live chat participation, and OBS overlays.",
+  "license": "MIT"
 }

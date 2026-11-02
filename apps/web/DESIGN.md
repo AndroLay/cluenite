@@ -1,14 +1,14 @@
-﻿# Cluenite web design system
+# Cluenite web design system
 
 Direction: **Cinematic Brown Noir**. The investigation scene and evidence workbench lead the page; branding stays in a compact header. Use obsidian, espresso, walnut, aged leather, antique brass, warm gold, parchment, and restrained burgundy. Mystery Live, Quick Case, and co-op share this visual language.
 
 Last synchronized: 3 November 2026. All authored UI, accessibility text, documentation, comments, and development instructions use English. The HTML document declares `lang="en"`.
 
-`PRODUCT.md` is the product context for this interface. Older navy mockups and the blue values in `docs/reference/**/design_tokens.json` are historical references only. They do not override this active direction.
+`PRODUCT.md` is the product context for this interface. Older navy mockups and the blue values in `the archived design specifications` are historical references only. They do not override this active direction.
 
 ## Current visual target
 
-The [frontend development brief](../../docs/design/frontend-target/README.md) preserves the eight user-provided PNGs. Use their illustrated desk headers, brass framing, parchment records, and scene-led hierarchy within the current Brown Noir world. The user subsequently extended the work through practice and authored live gameplay. Current implementation and dated checks are in [frontend progress](../../docs/agent-handoff/FRONTEND_PROGRESS.md).
+The original visual references informed the scene-led composition. Runtime artwork sources are recorded in [attribution](../../docs/attribution.md). Use their illustrated desk headers, brass framing, parchment records, and scene-led hierarchy within the current Brown Noir world. The user subsequently extended the work through practice and authored live gameplay. Current implementation and dated checks are in [frontend progress](../../docs/STATUS.md).
 
 The brief records deliberate adaptations for sample/live labels, authored Q01/M01/C01 content, unsupported statistics/polls/filters, identity-bound co-op invitations, and scoped OBS credentials. Match the composition while preserving those product boundaries. Reuse current tokens and standalone assets; reference PNGs are not runtime UI.
 

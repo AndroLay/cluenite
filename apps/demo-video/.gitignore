@@ -1,6 +1,0 @@
-node_modules/
-out/
-*.log
-# Recorded footage, generated audio and review frames stay on the owner's machine.
-public/*
-!public/fonts/

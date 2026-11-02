@@ -1,21 +1,24 @@
-name: Application checks
+name: CI and Render deployment
 
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
   group: cluenite-ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    outputs:
+      deployment_allowed: ${{ steps.release_window.outputs.allowed }}
     services:
       postgres:
         image: postgres:18
@@ -53,3 +56,36 @@ jobs:
         run: pnpm run lint --quiet
       - name: Documentation links
         run: pnpm run docs:check
+      - name: Install the browser for user-flow checks
+        run: pnpm exec playwright install --with-deps chrome
+      - name: Main gameplay, Twitch, co-op, and OBS browser flows
+        run: pnpm exec playwright test tests/e2e/immersive-live.spec.ts --workers=1 --reporter=dot
+      - name: Check the hackathon release window
+        id: release_window
+        run: node scripts/deploy-render.mjs --check-window
+
+  deploy:
+    needs: verify
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && needs.verify.outputs.deployment_allowed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: cluenite-production
+      cancel-in-progress: false
+    environment:
+      name: production
+      url: https://cluenite-app.onrender.com
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: Deploy and verify the exact checked main commit
+        run: node scripts/deploy-render.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ vars.RENDER_SERVICE_ID }}
+          RENDER_WORKSPACE_ID: ${{ vars.RENDER_WORKSPACE_ID }}

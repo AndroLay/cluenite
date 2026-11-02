@@ -1,3 +1,3 @@
-# Contributing to Cluenite
+# Contributing
 
-Read the [development guide](../docs/development/contributing.md) for setup, implementation boundaries, checks and documentation conventions. Current ownership and handoffs are in the [collaboration guide](../docs/development/collaboration.md); [status](../docs/STATUS.md) records verification and remaining acceptance.
+Read the [contribution guide](../docs/contributing.md), [setup](../docs/setup.md) and [testing](../docs/testing.md). Use English, preserve user work and keep credentials out of commits. Follow the [hackathon freeze](../docs/hackathon.md) before changing submitted artifacts.

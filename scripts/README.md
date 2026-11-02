@@ -1,5 +1,6 @@
-# Scripts
+# Repository scripts
 
-Keep deterministic local utilities here: case validation, migration orchestration, seed import, and explicit test-event fixtures. Simulated Twitch events must remain visibly labeled `SIMULATION` and must never be presented as real chat activity.
+- `pnpm run docs:check`: read-only validation of root Markdown placement, maintained local links, heading anchors and HTML image/link targets. It does not check external URLs.
+- `pnpm run deploy:render`: guarded exact-commit deployment to the existing approved Render service. GitHub Actions supplies the encrypted key and service variables; see [deployment](../docs/deployment.md). It blocks deployments at the hackathon freeze.
 
-Run `npm run docs:check` from the repository root to validate root Markdown placement and local links/heading anchors in maintained Markdown, including HTML image/link targets. The dependency-free checker is read-only and skips generated/local directories and frozen reference packs as link sources. It does not check external URLs or replace source/runtime verification. See [the repository map](../docs/repository-map.md) for document placement.
+Keep deterministic utilities here. Simulated Twitch events must be clearly labeled and never presented as real chat evidence. Generated output and credentials stay ignored.

@@ -6,33 +6,33 @@
 
 Cluenite is a streamer-led social detective game. Viewers inspect clues, release and connect evidence, reconstruct events, challenge theories, and submit a supported verdict. The engine/server own accepted progress; the browser presents public snapshots and sends authenticated host commands.
 
-The active visual direction is **Cinematic Brown Noir**: obsidian, espresso, walnut, brass, warm gold, parchment, and restrained burgundy. The [eight-screen frontend target](../../docs/design/frontend-target/README.md) preserves the supplied compositions. The current user-authorized pass extends the shared system through practice and live gameplay, with a viewport workspace, optional panels, and animated evidence inspection. Earlier blue-palette reference assets are historical. See [DESIGN.md](DESIGN.md). The reference images do not establish implemented functionality or replace authored case content.
+The active visual direction is **Cinematic Brown Noir**: obsidian, espresso, walnut, brass, warm gold, parchment, and restrained burgundy. The supplied compositions informed the illustrated site. Runtime art is listed in [attribution](../../docs/attribution.md). The current user-authorized pass extends the shared system through practice and live gameplay, with a viewport workspace, optional panels, and animated evidence inspection. Earlier blue-palette reference assets are historical. See [DESIGN.md](DESIGN.md). The reference images do not establish implemented functionality or replace authored case content.
 
 ## Routes
 
 `src/main.ts` mounts `site/SiteRoot.vue`. Pages are selected by path; session/mode/view query parameters select the investigation app, except the dedicated Quick Case sample.
 
-| Route                                     | Behavior                                                                                           |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `/`                                       | Public landing page; no live session state.                                                        |
-| `/play`                                   | Case metadata and Twitch sign-in check; creates a non-co-op session and opens its host panel.      |
-| `/guide`                                  | Roles, commands, samples, and troubleshooting.                                                     |
-| `/settings`                               | Browser-local sound, motion, and text-size preferences.                                            |
-| `/dashboard`                              | Account overview, saved sessions, explicit continuation, and setup/mode links.                     |
-| `/setup?round=<id>`                       | Session selection and explicit create/copy/replace/revoke controls for a private OBS link.         |
-| `/coop`                                   | C01 lobby creation/selection and invitations by Twitch username.                                   |
-| `/coop/invite?invite=<id>#token=<token>`  | Named partner consent with expiring same-tab continuation through sign-in.                         |
-| `/connect`                                | Confirms account state and continues a pending invitation after sign-in.                           |
-| `/play#practice`                          | Three local practice cards, separate from the authored live case list.                             |
-| `/preview/gallery`, `/preview/festival`, `/preview/signal` | Public catalog previews; no observations, private truth, commands, or session creation. |
-| `/practice/express`                       | Pearls on the Night Express: local pinboard, scripted chat votes, deductions, and a scored reveal. |
-| `/practice/lighthouse`                    | The Lighthouse Went Dark: local two-station card trading with a scripted partner.                  |
-| `/?view=quick`                            | A Missing Manuscript: playable hidden-object sample with local rules; no engine proof, no Twitch.  |
-| `/?view=mystery`                          | M01 visual preview snapshot; live command submission is disabled.                                  |
-| `/?session=<id>`                          | Authorized session presentation selected by snapshot `caseMode`.                                   |
-| `/?session=<id>&view=dashboard`           | Session workspace with optional Host controls, lifecycle actions, and advanced setup.              |
-| `/?session=<id>&view=quick`               | Explicit Quick Case presentation for the authorized session.                                       |
-| `/?mode=obs&session=<id>#overlay=<token>` | Read-only Quick Case presentation using a scoped overlay credential.                               |
+| Route                                                      | Behavior                                                                                           |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `/`                                                        | Public landing page; no live session state.                                                        |
+| `/play`                                                    | Case metadata and Twitch sign-in check; creates a non-co-op session and opens its host panel.      |
+| `/guide`                                                   | Roles, commands, samples, and troubleshooting.                                                     |
+| `/settings`                                                | Browser-local sound, motion, and text-size preferences.                                            |
+| `/dashboard`                                               | Account overview, saved sessions, explicit continuation, and setup/mode links.                     |
+| `/setup?round=<id>`                                        | Session selection and explicit create/copy/replace/revoke controls for a private OBS link.         |
+| `/coop`                                                    | C01 lobby creation/selection and invitations by Twitch username.                                   |
+| `/coop/invite?invite=<id>#token=<token>`                   | Named partner consent with expiring same-tab continuation through sign-in.                         |
+| `/connect`                                                 | Confirms account state and continues a pending invitation after sign-in.                           |
+| `/play#practice`                                           | Three local practice cards, separate from the authored live case list.                             |
+| `/preview/gallery`, `/preview/festival`, `/preview/signal` | Public catalog previews; no observations, private truth, commands, or session creation.            |
+| `/practice/express`                                        | Pearls on the Night Express: local pinboard, scripted chat votes, deductions, and a scored reveal. |
+| `/practice/lighthouse`                                     | The Lighthouse Went Dark: local two-station card trading with a scripted partner.                  |
+| `/?view=quick`                                             | A Missing Manuscript: playable hidden-object sample with local rules; no engine proof, no Twitch.  |
+| `/?view=mystery`                                           | M01 visual preview snapshot; live command submission is disabled.                                  |
+| `/?session=<id>`                                           | Authorized session presentation selected by snapshot `caseMode`.                                   |
+| `/?session=<id>&view=dashboard`                            | Session workspace with optional Host controls, lifecycle actions, and advanced setup.              |
+| `/?session=<id>&view=quick`                                | Explicit Quick Case presentation for the authorized session.                                       |
+| `/?mode=obs&session=<id>#overlay=<token>`                  | Read-only Quick Case presentation using a scoped overlay credential.                               |
 
 The public manuscript sample is separate from Q01 **The Gallery Shadow**. Non-OBS live Q01/M01/C01 use `LiveCaseExperience.vue`, consuming public snapshots. `QuickCaseOverlay.vue` routes OBS to the transparent, read-only `BroadcastOverlay.vue` and retains the legacy explicit Quick Case surface. M01 is **The Missing Festival Trophy**; C01 is **Signal of the Invisible Ship**. Do not imply a sample validates the authored case. The three live cases remain Twitch sessions; their previews provide no solo bypass.
 
@@ -61,6 +61,6 @@ The landing page's hero and the dashboard banner use a living scene drawn in cod
 
 ## Remaining product work
 
-Saved sessions, host Start/Pause/Resume/Restart/Stop, scoped OBS controls, co-op consent/workstations, explicit rejoin, and stable command retries are connected. Keep the contracts in the [frontend/backend integration handoff](../../docs/agent-handoff/FRONTEND_BACKEND_INTEGRATION.md) when refining their presentation. M01 keeps its current hint visible and offers another request while `availableActions` permits it; pause disables the action.
+Saved sessions, host Start/Pause/Resume/Restart/Stop, scoped OBS controls, co-op consent/workstations, explicit rejoin, and stable command retries are connected. Keep the contracts in the [frontend/backend integration handoff](../../docs/api.md) when refining their presentation. M01 keeps its current hint visible and offers another request while `availableActions` permits it; pause disables the action.
 
-Generated artwork remains prototype material awaiting final approval. The practice and mocked browser checks do not establish new real Twitch, OBS Studio, Render, or player acceptance. See [frontend progress](../../docs/agent-handoff/FRONTEND_PROGRESS.md) for scoped frontend evidence, [status](../../docs/STATUS.md) for integration/external evidence, and [local setup](../../docs/development/local-setup.md) for environment limits.
+Runtime artwork provenance is documented in [attribution](../../docs/attribution.md). The practice and mocked browser checks do not establish new real Twitch, OBS Studio, Render, or player acceptance. See [frontend progress](../../docs/STATUS.md) for scoped frontend evidence, [status](../../docs/STATUS.md) for integration/external evidence, and [local setup](../../docs/setup.md) for environment limits.

@@ -4,7 +4,7 @@ import { api, ApiError, record } from "../net/api";
 // One shared answer to "who is signed in, and is chat listening?" for every site page. GET /api/me is asked once
 // per page load (or again on request), so the menu, the status pill, and the page body never disagree.
 //
-// Contract (BACKEND_CONTRACTS.md): 200 {authenticated:true, profile:{login,displayName}, twitch:{connected,
+// Contract (docs/api.md): 200 {authenticated:true, profile:{login,displayName}, twitch:{connected,
 // chatStatus}, csrfToken, expiresAt}; 401 when this browser has no host session. chatStatus is the server's chat
 // worker status, not proof that a message has arrived.
 

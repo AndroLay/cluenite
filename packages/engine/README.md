@@ -6,4 +6,4 @@ Pure TypeScript transitions and proof evaluation are implemented in `src/round.t
 
 Only authored prerequisites and accepted actions advance proof. Invalid input and known duplicates do not advance revision. Public snapshots advertise state-aware `availableActions` and withhold private truth and expected sequence order.
 
-Read [architecture decisions](../../docs/architecture/DECISIONS.md), [API contracts](../../docs/agent-handoff/BACKEND_CONTRACTS.md), and tests under `tests/engine`. Use English for authored feedback, comments, and tests. Runtime cases are provided by `packages/cases`.
+Read [architecture decisions](../../docs/architecture.md), [API contracts](../../docs/api.md), and tests under `tests/engine`. Use English for authored feedback, comments, and tests. Runtime cases are provided by `packages/cases`.

@@ -1,22 +1,9 @@
 # Repository instructions
 
-## Language
-
-- Use English for all repository documentation, web interface copy, accessibility text, authored case content, code comments, tests, development prompts, and new commit or pull request descriptions.
-- Preserve established identifiers, proper names, external user content, and verbatim historical quotations. Do not translate API fields or change identifiers to enforce language.
-- Use English for development reports unless the user explicitly requests another language.
-
-## Documentation and evidence
-
-- Start with `docs/README.md` for the documentation map and `docs/STATUS.md` for current implementation and verification boundaries.
-- Check source code before raising a feature's implementation status. Date test results and distinguish current checks from historical evidence.
-- Keep `docs/reference/` source packs unchanged; record current implementation differences in `docs/reference/README.md` and `docs/architecture/DECISIONS.md`.
-- Treat `docs/history/gameplay-debate.md` and older implementation plans as historical records, not current startup instructions.
-- Update affected guides and handoff documents when routes, commands, contracts, setup, or product behavior change.
-
-## Collaboration
-
-- Follow `docs/development/collaboration.md` for file ownership and handoffs. An explicit user request may authorize a scoped cross-area integration pass.
-- Preserve existing local changes. Use one writer per file; use separate worktrees for concurrent edits.
-- Keep secrets out of documentation, logs, screenshots, and chat. Do not commit credentials or generated local state.
-- Use the smallest relevant checks and report unverified behavior. Do not deploy, mutate external services, or commit changes without authorization.
+- Use English for repository documentation, UI and accessibility copy, authored content, comments, tests and commit descriptions. Preserve identifiers, proper names and external quotations.
+- Start with [documentation](docs/README.md), [architecture](docs/architecture.md) and the current source. Record only observed verification; distinguish local fixtures, real Twitch and production.
+- Preserve user edits and backward compatibility. Use one writer per file and separate worktrees for concurrent edits. Keep changes small and run the relevant checks in [testing](docs/testing.md).
+- Keep credentials, cookies, private chat, local state and generated build output out of source control and reports. Never introduce a production authentication bypass.
+- Keep only README.md and AGENTS.md as root Markdown. Maintain public guides under docs/ and package-specific instructions beside the code. Internal notes and video production stay outside tracked application source.
+- Follow the [hackathon rules and freeze](docs/hackathon.md). After the submission deadline, keep the submitted repository, live project and video unchanged unless the organizer authorizes updates; continue in a separate copy.
+- External writes, deploys and destructive work require user authorization. Existing scoped authorization persists; never force-push over another contributor.

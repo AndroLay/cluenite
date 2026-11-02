@@ -30,12 +30,6 @@ async function walk(directory) {
     if (skipped.has(entry.name) || entry.isSymbolicLink()) continue;
     const file = path.join(directory, entry.name);
     if (entry.isDirectory()) {
-      if (relative(file) === "apps/demo-video/out") continue;
-      if (
-        relative(directory) === "docs/reference" &&
-        entry.name.startsWith("Cluenite_")
-      )
-        continue;
       await walk(file);
     } else if (/\.md$/i.test(entry.name)) {
       files.push(file);

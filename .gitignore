@@ -14,3 +14,14 @@ test-results/
 .DS_Store
 Cluenite-source-*.zip
 *.log
+
+# Production source excludes local video production and agent working notes.
+apps/demo-video/
+docs/demo/
+docs/history/
+docs/agent-handoff/
+docs/superpowers/
+docs/evidence/
+docs/reference/
+docs/design/frontend-target/
+.devpost-hackathon-state.json
