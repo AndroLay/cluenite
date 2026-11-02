@@ -2,6 +2,12 @@
 
 Updated 3 November 2026 WITA. The latest compatibility pass preserves the immersive frontend and local practice experiences. No deployment, dependency, migration, or backend API change is part of this frontend pass.
 
+## Host and OBS usability refinements
+
+The host panel keeps its actual connection state while sending an action, with a Sending label instead of a false disconnection. Replacing or revoking an OBS link clears the setup wizard's copy confirmation, so Continue to OBS requires copying the current link. The setup guide tells hosts to start the round and send a complete clue command (for example, !look CAM in The Gallery Shadow). Connection failures explain how to check the internet connection and retry, and the chat-connection heading covers both first sign-in and recovery. Existing gameplay, co-op consent, saved sessions, and the visual system remain unchanged.
+
+These scoped refinements complement the existing retry, invitation, owner/partner, mobile, keyboard/dialog and reduced-motion coverage. They do not establish universal accessibility or player acceptance.
+
 ## Twitch outage recovery
 
 Transient EventSub failures keep recovering after the first eight exponential retries: the existing single timer waits 60 seconds between subsequent attempts. Reconciliation does not reset the backoff, the counter is capped, and successful subscription restores the fast budget. Revocation, stopping/replacing a worker and shutdown cancel its recovery. No API contracts, token scopes, database migrations or dependencies change.

@@ -267,6 +267,31 @@ test("clears an invitation when logout is requested even if its response is lost
   await expect(page.getByRole("link", { name: "Continue co-op invitation", exact: true })).toHaveCount(0);
 });
 
+test("requires copying the current OBS link after replacement or revocation", async ({ page }) => {
+  const id = "obs-copy-guidance";
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async () => undefined } }));
+  await page.route("**/api/me", route => route.fulfill({ json: { authenticated: true, profile: { login: "fixture_host", displayName: "Fixture Host" }, twitch: { connected: true, chatStatus: "connected" }, csrfToken: "fixture-csrf" } }));
+  await page.route(/\/api\/sessions(?:\?.*)?$/, route => route.fulfill({ json: { sessions: [{ sessionId: id, caseId: Q01_GALLERY_SHADOW.id, title: Q01_GALLERY_SHADOW.title, phase: "READY", revision: 1, team: "A", role: "host", needsRejoin: false, updatedAt: "2026-11-03T00:00:00Z" }] } }));
+  await page.route(`**/api/sessions/${id}/overlay-credential`, route => route.fulfill({ json: route.request().method() === "DELETE" ? { revoked: true } : { url: `${origin}/?mode=obs&session=${id}#overlay=${"A".repeat(43)}`, expiresAt: "2026-11-04T00:00:00Z" } }));
+  page.on("dialog", dialog => dialog.accept());
+  await page.goto(`${origin}/setup?round=${id}`);
+  await page.getByRole("button", { name: "Next step", exact: true }).click();
+  const next = page.getByRole("button", { name: "Continue to OBS", exact: true });
+  await expect(next).toBeDisabled();
+  await page.getByRole("button", { name: "Create overlay link", exact: true }).click();
+  await page.getByRole("button", { name: "Copy link", exact: true }).click();
+  await expect(next).toBeEnabled();
+  await page.getByRole("button", { name: "Replace overlay link", exact: true }).click();
+  await expect(next).toBeDisabled();
+  await page.getByRole("button", { name: "Copy link", exact: true }).click();
+  await expect(next).toBeEnabled();
+  await page.getByRole("button", { name: "Revoke link", exact: true }).click();
+  await expect(next).toBeDisabled();
+  await expect(page.getByRole("status")).toContainText("Overlay link revoked");
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+});
+
 for (const status of ["reconnecting", "disconnected", "error", "revoked", "unrecognized", "connected"]) {
   test(`reports the actual Twitch chat connection: ${status}`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -277,7 +302,7 @@ for (const status of ["reconnecting", "disconnected", "error", "revoked", "unrec
       await expect(page.getByRole("heading", { name: "You're connected", exact: true })).toBeVisible();
     } else {
       await expect(page.getByRole("heading", { name: "You're connected", exact: true })).toHaveCount(0);
-      if (status === "reconnecting") await expect(page.getByRole("heading", { name: "Reconnecting Twitch chat", exact: true })).toBeVisible();
+      if (status === "reconnecting") await expect(page.getByRole("heading", { name: "Connecting Twitch chat", exact: true })).toBeVisible();
       else await expect(page.getByRole("link", { name: "Reconnect Twitch", exact: true })).toHaveAttribute("href", "/api/auth/twitch/start");
       chatStatus = "connected";
       await page.getByRole("button", { name: "Check again", exact: true }).click();

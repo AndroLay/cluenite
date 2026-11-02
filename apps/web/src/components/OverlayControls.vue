@@ -5,7 +5,7 @@ import { newIdempotencyKey } from "../net/idempotency";
 import { account, checkAccount, TWITCH_START } from "../site/account";
 
 const props = defineProps<{ sessionId: string }>();
-const emit = defineEmits<{ copied: [] }>();
+const emit = defineEmits<{ copied: []; invalidated: [] }>();
 const busy = ref(false);
 const hasLink = ref(false);
 const lost = ref(false);
@@ -25,6 +25,7 @@ function reset(): void {
 async function issue(): Promise<void> {
   if (busy.value || account.state.kind !== "signed-in" || !account.state.csrf) return;
   if ((hasLink.value || lost.value) && !window.confirm("Replace the overlay link? Any OBS source using the previous link will disconnect.")) return;
+  emit("invalidated");
   if (lost.value) issueKey = null; // Explicit replacement after a lost response, never an automatic retry.
   issueKey ??= newIdempotencyKey();
   busy.value = true;
@@ -57,6 +58,7 @@ async function copy(): Promise<void> {
 async function revoke(): Promise<void> {
   if (busy.value || account.state.kind !== "signed-in") return;
   if (!window.confirm("Revoke this team's overlay link? Its OBS browser source will disconnect.")) return;
+  emit("invalidated");
   busy.value = true;
   const run = generation;
   revokeKey ??= newIdempotencyKey();

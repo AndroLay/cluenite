@@ -81,7 +81,7 @@ const MODES: readonly { id: ModeId; label: string; detail: string; icon: SiteIco
   { id: "mystery", label: "Mystery Live", detail: "A longer round your chat drives.", icon: "chat", art: modeMic },
   { id: "coop", label: "Co-op", detail: "Two streamers, one case.", icon: "people", art: modeCoop },
 ];
-const NETWORK_ERROR = "Cannot reach the server. Check that it is running, then retry.";
+const NETWORK_ERROR = "Cluenite could not load your cases. Check your internet connection, then retry.";
 
 const cases = ref<CaseSummary[]>([]);
 const casesState = ref<CasesState>("loading");

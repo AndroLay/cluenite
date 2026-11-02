@@ -29,7 +29,7 @@ const canSend = computed(
   () => props.host !== false && connected.value && draft.value.trim().length > 0,
 );
 const connectionLabel = computed(() => {
-  if (props.connection === "connected" && !props.busy) return "Connected";
+  if (props.connection === "connected") return props.busy ? "Sending…" : "Connected";
   if (props.connection === "connecting") return "Connecting";
   return "Disconnected";
 });

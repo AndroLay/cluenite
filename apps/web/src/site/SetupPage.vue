@@ -135,7 +135,7 @@ onMounted(() => {
 
         <!-- 3. Overlay link -->
         <div v-else-if="current === 2" class="su-body">
-          <OverlayControls v-if="selectedSession" :session-id="selectedSession" @copied="copied = true" />
+          <OverlayControls v-if="selectedSession" :session-id="selectedSession" @copied="copied = true" @invalidated="copied = false" />
           <p v-else class="su-text">Choose a session first. A private link can only be created for a session you can access.</p>
           <button v-if="!selectedSession" type="button" class="gs-btn gs-btn--ghost" @click="go(1)">Choose a session</button>
           <ul class="su-facts">
@@ -179,7 +179,7 @@ onMounted(() => {
           </p>
           <ul class="su-facts">
             <li><SiteIcon name="check" /> You see the case title and the clues on your stream.</li>
-            <li><SiteIcon name="chat" /> A chat command such as <code>!look</code> changes the board within moments.</li>
+            <li><SiteIcon name="chat" /> Start the round, then send <code>!look &lt;clue-id&gt;</code> in your Twitch chat. Use a clue ID shown in your case, such as <code>!look CAM</code> in The Gallery Shadow.</li>
             <li>
               <SiteIcon name="alert" /> Blank source? Press <b>Refresh</b> in the browser source, or make a new link
               in the host controls.
@@ -191,7 +191,7 @@ onMounted(() => {
             >
             <a class="gs-btn gs-btn--ghost gs-btn--lg" href="/guide">How to play</a>
           </div>
-          <p class="su-small">The overlay has not been tested in OBS Studio yet. These steps describe the intended setup.</p>
+          <p class="su-small">Check your OBS source before going live. If chat does not update the board, open <a href="/connect">Connection details</a> and check that chat is listening.</p>
         </div>
 
         <div class="su-nav">

@@ -94,7 +94,7 @@ const view = computed<OutcomeView>(() => {
     if (state.chat === "connecting") {
       return {
         tone: "warn",
-        heading: "Reconnecting Twitch chat",
+        heading: "Connecting Twitch chat",
         body: "You are signed in, but chat is not listening yet. Cluenite retries automatically. Use Check again to refresh this status, or reconnect your Twitch account.",
         action: { label: "Reconnect Twitch", href: TWITCH_START },
       };
@@ -125,7 +125,7 @@ const view = computed<OutcomeView>(() => {
     return {
       tone: "error",
       heading: "The server is not answering",
-      body: "Cluenite could not check your connection. Make sure the server is running, then check again.",
+      body: "Cluenite could not check your connection. Check your internet connection, wait a moment, then choose Check again.",
     };
   }
   if (outcome === "connected") {
