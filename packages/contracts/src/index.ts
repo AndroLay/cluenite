@@ -105,13 +105,53 @@ export type CreateSession = z.infer<typeof createSessionSchema>;
 export const teamRoleSchema = z.enum(["A", "B"]);
 export type TeamRole = z.infer<typeof teamRoleSchema>;
 
-export const createCoopInviteSchema = z
+export const twitchLoginSchema = z
+  .string()
+  .trim()
+  .transform((value) => value.replace(/^@/, "").toLowerCase())
+  .pipe(
+    z
+      .string()
+      .min(1)
+      .max(25)
+      .regex(/^[a-z0-9_]+$/),
+  );
+
+export const createCoopInviteSchema = z.union([
+  z
+    .object({
+      sessionId: sessionIdSchema,
+      inviteeTwitchId: z.string().regex(/^\d{1,32}$/),
+    })
+    .strict(),
+  z
+    .object({
+      sessionId: sessionIdSchema,
+      inviteeLogin: twitchLoginSchema,
+    })
+    .strict(),
+]);
+export type CreateCoopInvite = z.infer<typeof createCoopInviteSchema>;
+
+export const sessionListQuerySchema = z
   .object({
-    sessionId: sessionIdSchema,
-    inviteeTwitchId: z.string().regex(/^\d{1,32}$/),
+    status: z.enum(["open", "all"]).default("open"),
+    limit: z.coerce.number().int().min(1).max(50).default(20),
   })
   .strict();
-export type CreateCoopInvite = z.infer<typeof createCoopInviteSchema>;
+export type SessionListQuery = z.infer<typeof sessionListQuerySchema>;
+
+export interface SessionSummary {
+  readonly sessionId: string;
+  readonly caseId: string;
+  readonly title: string;
+  readonly phase: SessionPhase;
+  readonly revision: number;
+  readonly team: TeamRole;
+  readonly role: "host" | "partner";
+  readonly needsRejoin: boolean;
+  readonly updatedAt: string;
+}
 
 export const acceptCoopInviteSchema = z
   .object({

@@ -9,6 +9,7 @@ import {
   declineCoopInviteSchema,
   idempotencyKeySchema,
   sessionIdSchema,
+  sessionListQuerySchema,
   type SessionControl,
 } from "@cluenite/contracts";
 import type { ServerConfig } from "../config.js";
@@ -42,7 +43,10 @@ import {
   createOpaqueToken,
   hashOpaqueToken,
 } from "./crypto.js";
-import { TwitchApi } from "../twitch/twitchApi.js";
+import {
+  TwitchApi,
+  TwitchAuthorizationExpiredError,
+} from "../twitch/twitchApi.js";
 import { AUTHORED_CASES } from "@cluenite/cases";
 
 export interface AuthRoutesOptions {
@@ -372,6 +376,28 @@ export function registerAuthRoutes(options: AuthRoutesOptions): void {
     return { disconnected: true, providerRevocation };
   });
 
+  app.get("/api/sessions", async (request, reply) => {
+    const host = await authenticateHost(request, reply, sessions);
+    if (!host) return;
+    const parsed = sessionListQuerySchema.safeParse(request.query);
+    if (!parsed.success)
+      return reply.code(400).send({ error: "invalid_session_query" });
+    try {
+      return {
+        sessions: await rounds.listForParticipant(
+          host.session.twitchUserId,
+          parsed.data,
+        ),
+      };
+    } catch (error) {
+      request.log.error(
+        { code: safeErrorCode(error) },
+        "Session discovery failed",
+      );
+      return reply.code(503).send({ error: "session_list_unavailable" });
+    }
+  });
+
   app.post("/api/sessions", async (request, reply) => {
     const host = await authorizeMutation(request, reply);
     if (!host) return;
@@ -410,12 +436,49 @@ export function registerAuthRoutes(options: AuthRoutesOptions): void {
     const parsed = createCoopInviteSchema.safeParse(request.body);
     if (!parsed.success)
       return reply.code(400).send({ error: "invalid_coop_invite" });
+    let inviteeTwitchId: string;
+    let invitee: TwitchIdentity | undefined;
+    if ("inviteeLogin" in parsed.data) {
+      if (
+        (await rounds.hostTwitchUserIdForSession(parsed.data.sessionId)) !==
+        host.session.twitchUserId
+      )
+        return reply.code(404).send({ error: "session_not_found" });
+      if (!twitchApi)
+        return reply.code(503).send({ error: "twitch_lookup_unavailable" });
+      const account = await sessions.loadTwitchAccount(
+        host.session.twitchUserId,
+      );
+      if (!account)
+        return reply
+          .code(409)
+          .send({ error: "twitch_reauthorization_required" });
+      try {
+        const found = await twitchApi.getUserByLogin(
+          account.accessToken,
+          parsed.data.inviteeLogin,
+        );
+        if (!found)
+          return reply.code(404).send({ error: "twitch_user_not_found" });
+        invitee = found;
+        inviteeTwitchId = found.id;
+      } catch (error) {
+        return error instanceof TwitchAuthorizationExpiredError
+          ? reply
+              .header("retry-after", "2")
+              .code(503)
+              .send({ error: "twitch_connection_recovering" })
+          : reply.code(503).send({ error: "twitch_lookup_unavailable" });
+      }
+    } else {
+      inviteeTwitchId = parsed.data.inviteeTwitchId;
+    }
     const token = createOpaqueToken();
     try {
       const invite = await rounds.createCoopInvitation({
         sessionId: parsed.data.sessionId,
         inviterTwitchId: host.session.twitchUserId,
-        inviteeTwitchId: parsed.data.inviteeTwitchId,
+        inviteeTwitchId,
         tokenHash: hashOpaqueToken(
           token,
           config.overlayHashKey!,
@@ -423,9 +486,16 @@ export function registerAuthRoutes(options: AuthRoutesOptions): void {
         ),
         idempotencyKey: key,
       });
-      return invite
-        ? reply.code(201).send({ ...invite, token })
-        : reply.code(404).send({ error: "session_not_found" });
+      if (!invite) return reply.code(404).send({ error: "session_not_found" });
+      const url = new URL("/coop/invite", config.publicOrigin);
+      url.searchParams.set("invite", invite.inviteId);
+      url.hash = new URLSearchParams({ token }).toString();
+      return reply.code(201).send({
+        ...invite,
+        token,
+        url: url.toString(),
+        ...(invitee ? { invitee } : {}),
+      });
     } catch (error) {
       if (error instanceof CoopInviteReplayError)
         return reply.code(409).send({ error: "invite_idempotency_replay" });

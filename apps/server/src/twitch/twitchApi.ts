@@ -1,5 +1,5 @@
 import type { TwitchOAuthConfig } from "../config.js";
-import { twitchIdentitySchema } from "@cluenite/contracts";
+import { twitchIdentitySchema, twitchLoginSchema } from "@cluenite/contracts";
 import type { TwitchIdentity, TwitchTokenSet } from "../auth/sessionStore.js";
 
 type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>;
@@ -161,6 +161,43 @@ export class TwitchApi {
     });
     if (!identity.success)
       throw new Error("Twitch profile response was invalid.");
+    return identity.data;
+  }
+
+  async getUserByLogin(
+    accessToken: string,
+    login: string,
+  ): Promise<TwitchIdentity | null> {
+    const normalized = twitchLoginSchema.parse(login);
+    const url = new URL("https://api.twitch.tv/helix/users");
+    url.searchParams.set("login", normalized);
+    const response = await this.fetcher(url, {
+      headers: {
+        "client-id": this.config.clientId,
+        authorization: `Bearer ${accessToken}`,
+      },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (response.status === 401 || response.status === 403)
+      throw new TwitchAuthorizationExpiredError();
+    if (!response.ok)
+      throw new Error("Twitch user lookup is temporarily unavailable.");
+    const value = await readJson(response);
+    if (!isRecord(value) || !Array.isArray(value.data) || value.data.length > 1)
+      throw new Error("Twitch user lookup returned an invalid response.");
+    if (value.data.length === 0) return null;
+    const profile = value.data[0];
+    if (!isRecord(profile))
+      throw new Error("Twitch user lookup returned an invalid profile.");
+    const identity = twitchIdentitySchema.safeParse({
+      id: profile.id,
+      login: profile.login,
+      displayName: profile.display_name,
+    });
+    if (!identity.success || identity.data.login.toLowerCase() !== normalized)
+      throw new Error(
+        "Twitch user lookup did not match the requested account.",
+      );
     return identity.data;
   }
 

@@ -62,8 +62,11 @@ the broadcaster's active sessions.
 - `GET /api/auth/twitch/start` and `/api/auth/twitch/callback`: OAuth login.
 - `GET /api/me` and `POST /api/auth/logout`: host profile, CSRF token, logout.
 - `POST /api/auth/twitch/disconnect`: revoke provider access and local credentials.
+- `GET /api/sessions`: recover participant sessions after refresh/login; defaults
+  to open sessions, with optional bounded recent metadata and explicit rejoin hints.
 - `POST /api/sessions`: create a pinned Q01, M01, or C01 session.
-- `POST /api/coops/invitations`: invite the named broadcaster to a waiting C01.
+- `POST /api/coops/invitations`: invite by Twitch username or legacy numeric ID;
+  returns a ready-to-share link with a fragment-only bearer returned at creation.
 - `POST /api/coops/invitations/:id/accept|decline`: accept or decline as the
   named, OAuth-authenticated broadcaster. Invitations expire after 24 hours.
 - `POST /api/coops/sessions/:id/rejoin`: restore a previously accepted C01
@@ -94,6 +97,11 @@ case solution or presents an incomplete run as a successful solve.
 Socket handshakes require the configured origin, with an exact same-origin `Referer` fallback only when `Origin` is absent. Optional socket keys support exact retries; clients should preserve the original key for retries. Requests without keys retain compatibility handling and cannot claim exact retry identity.
 
 ## Verification
+
+The [simple setup handoff](../../docs/agent-handoff/BACKEND_SIMPLE_SETUP.md)
+defines session rediscovery, username invitations, OBS credential handling, and
+the remaining frontend wiring. These additive APIs preserve advanced controls
+and existing authorization; they do not certify a completed host interface.
 
 For the current predeploy implementation, production preflight, HTTP admission, data retention/account deletion, and remaining remote gates, use the [predeploy operations guide](../../docs/operations/BACKEND_PREDEPLOY_2026-11-02.md). `npm --prefix apps/server run preflight` validates configuration without connecting to a service. `npm --prefix apps/server run maintenance` previews bounded cleanup; only `--apply` deletes eligible data. Never treat a local configuration check as a deployed acceptance result.
 

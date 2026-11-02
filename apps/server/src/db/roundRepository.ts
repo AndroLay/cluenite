@@ -6,6 +6,8 @@ import type {
   SessionPhase,
   SessionControl,
   TeamRole,
+  SessionListQuery,
+  SessionSummary,
 } from "@cluenite/contracts";
 import { findAuthoredCase } from "@cluenite/cases";
 import {
@@ -1209,6 +1211,50 @@ export class PostgresRoundRepository {
       [sessionId],
     );
     return result.rows[0]?.host_twitch_id ?? null;
+  }
+
+  async listForParticipant(
+    twitchUserId: string,
+    query: SessionListQuery,
+  ): Promise<SessionSummary[]> {
+    const result = await this.pool.query<{
+      id: string;
+      host_twitch_id: string;
+      case_id: string;
+      phase: SessionPhase;
+      revision: string;
+      team_role: TeamRole;
+      needs_rejoin: boolean;
+      updated_at: Date;
+    }>(
+      `SELECT s.id, s.host_twitch_id, s.case_id, s.phase, s.revision::text,
+              sc.team_role, sc.revoked_at IS NOT NULL AS needs_rejoin, s.updated_at
+       FROM session_channels sc
+       JOIN game_sessions s ON s.id = sc.session_id
+       WHERE sc.broadcaster_id = $1
+         AND ($2 = 'all' OR s.phase IN ('COOP_WAITING', 'READY', 'ACTIVE', 'PAUSED'))
+         AND (sc.revoked_at IS NULL OR (
+           sc.team_role = 'B' AND s.phase IN ('COOP_WAITING', 'READY', 'ACTIVE', 'PAUSED')
+           AND EXISTS (
+             SELECT 1 FROM coop_invites ci WHERE ci.session_id = s.id
+               AND ci.inviter_twitch_id = s.host_twitch_id
+               AND ci.invitee_twitch_id = sc.broadcaster_id AND ci.status = 'ACCEPTED'
+           )
+         ))
+       ORDER BY s.updated_at DESC, s.id DESC LIMIT $3`,
+      [twitchUserId, query.status, query.limit],
+    );
+    return result.rows.map((row) => ({
+      sessionId: row.id,
+      caseId: row.case_id,
+      title: findAuthoredCase(row.case_id)?.title ?? row.case_id,
+      phase: row.phase,
+      revision: Number(row.revision),
+      team: row.team_role,
+      role: row.host_twitch_id === twitchUserId ? "host" : "partner",
+      needsRejoin: row.needs_rejoin,
+      updatedAt: row.updated_at.toISOString(),
+    }));
   }
 
   async diagnosticsForParticipant(

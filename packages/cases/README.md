@@ -12,4 +12,4 @@ The pure engine validates authored graphs and evaluates their proof. Definitions
 
 Author content and feedback in English. Q01 links use released evidence IDs; clue IDs are inspection targets. `ACCESS` is contextual Q01 information, not a linkable evidence record.
 
-JSON files in [reference fixtures](fixtures/reference-v1.0/README.md) are preserved blueprint examples, not runtime imports. The public manuscript sample in `apps/web/src/site/QuickSamplePage.vue` is a separate UI demonstration, not a fourth authored engine case.
+JSON files in [reference fixtures](fixtures/reference-v1.0/README.md) are preserved blueprint examples, not runtime imports. The routed public manuscript sample in `apps/web/src/site/SampleCasePage.vue` is a separate UI demonstration, not a fourth authored engine case; `QuickSamplePage.vue` remains an unrouted source file.
