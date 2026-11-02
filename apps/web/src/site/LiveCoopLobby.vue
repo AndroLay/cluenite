@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from "vue";
 import type { SessionSummary } from "@cluenite/contracts";
-import { roundSnapshotSchema } from "@cluenite/contracts";
 import SessionList from "./SessionList.vue";
+import CaseSwitchNotice from "./CaseSwitchNotice.vue";
 import { account, checkAccount, TWITCH_START } from "./account";
 import { api, ApiError, apiMessage } from "../net/api";
 import { newIdempotencyKey } from "../net/idempotency";
+import { listSessions } from "./sessions";
+import { launchSession, newSessionLaunch, type SessionLaunchAttempt } from "./sessionLaunch";
 
-const props = defineProps<{ caseId: string }>();
+const props = withDefaults(defineProps<{ caseId: string; caseTitle?: string }>(), { caseTitle: "this co-op case" });
 const session = ref("");
 const sessions = ref<SessionSummary[]>([]);
 const createdSession = ref<SessionSummary | null>(null);
@@ -20,7 +22,8 @@ const lost = ref(false);
 const expires = ref("");
 const selected = computed(() => (sessions.value.find(row => row.sessionId === session.value) ?? (createdSession.value?.sessionId === session.value ? createdSession.value : undefined)));
 const canInvite = computed(() => selected.value?.role === "host" && !selected.value.needsRejoin && selected.value.phase === "COOP_WAITING");
-let createKey: string | null = null;
+const createAttempt = ref<SessionLaunchAttempt | null>(null);
+const pendingSwitch = ref<SessionSummary | null>(null);
 let invitation: { signature: string; key: string } | null = null;
 let link: string | null = null;
 const invitee = ref("");
@@ -30,19 +33,51 @@ function choose(id: string): void {
   link = null; shared.value = false; lost.value = false; note.value = ""; invitation = null;
 }
 async function create(): Promise<void> {
+  if (pendingSwitch.value && createAttempt.value?.previousSessionId) return;
+  await createLobby(false);
+}
+async function switchCase(): Promise<void> { await createLobby(true); }
+async function createLobby(replace: boolean): Promise<void> {
   if (busy.value || account.state.kind !== "signed-in") return;
+  if (replace && !pendingSwitch.value) return;
   busy.value = true; note.value = "";
-  createKey ??= newIdempotencyKey();
   try {
-    const body = await api("/api/sessions", { method: "POST", csrf: account.state.csrf, key: createKey, body: { caseId: props.caseId } });
-    const parsed = roundSnapshotSchema.safeParse(body.snapshot);
-    if (!parsed.success) throw new ApiError(0, "response_incomplete");
-    createKey = null;
-    createdSession.value = { sessionId: parsed.data.sessionId, caseId: parsed.data.caseId, title: parsed.data.title, phase: parsed.data.phase, revision: parsed.data.revision, team: "A", role: "host", needsRejoin: false, updatedAt: new Date().toISOString() };
+    if (!replace) {
+      const current = (await listSessions()).find(row => row.role === "host" && !row.needsRejoin);
+      if (current && current.caseId !== props.caseId) { pendingSwitch.value = current; createAttempt.value = null; return; }
+      if (current) {
+        createdSession.value = current;
+        createAttempt.value = null; pendingSwitch.value = null;
+        choose(current.sessionId);
+        return;
+      }
+    }
+    if (replace && createAttempt.value?.previousSessionId !== pendingSwitch.value?.sessionId) {
+      createAttempt.value = newSessionLaunch(props.caseId, pendingSwitch.value?.sessionId);
+    }
+    createAttempt.value ??= newSessionLaunch(props.caseId);
+    const snapshot = await launchSession(createAttempt.value, account.state.csrf);
+    createAttempt.value = null; pendingSwitch.value = null;
+    createdSession.value = { sessionId: snapshot.sessionId, caseId: snapshot.caseId, title: snapshot.title, phase: snapshot.phase, revision: snapshot.revision, team: "A", role: "host", needsRejoin: false, updatedAt: new Date().toISOString() };
     await picker.value?.reload();
-    choose(parsed.data.sessionId);
+    choose(snapshot.sessionId);
     note.value = "Co-op lobby created. Invite your partner before starting the round.";
-  } catch (cause) { note.value = apiMessage(cause); if (cause instanceof ApiError && cause.status === 401) void checkAccount(true); }
+  } catch (cause) {
+    if (createAttempt.value?.stopConfirmed) void picker.value?.reload();
+    if (cause instanceof ApiError && cause.code === "case_launch_ended") { createAttempt.value = null; pendingSwitch.value = null; }
+    if (cause instanceof ApiError && cause.code === "idempotency_conflict") {
+      try {
+        const current = (await listSessions()).find(row => row.role === "host" && !row.needsRejoin);
+        if (current && current.caseId !== props.caseId) { pendingSwitch.value = current; createAttempt.value = null; }
+      } catch { /* Keep the retained action for retry if discovery is unavailable. */ }
+    }
+    note.value = cause instanceof ApiError && cause.code === "case_stop_not_accepted"
+      ? "The current case could not be stopped. No new lobby was created. Retry switching, or continue it."
+      : cause instanceof ApiError && cause.code === "case_launch_ended"
+      ? "That lobby has already ended. Choose Create co-op lobby to start a new one."
+      : apiMessage(cause);
+    if (cause instanceof ApiError && (cause.status === 401 || cause.code === "csrf_rejected")) void checkAccount(true);
+  }
   finally { busy.value = false; }
 }
 async function invite(): Promise<void> {
@@ -84,7 +119,8 @@ onBeforeUnmount(() => { link = null; invitation = null; });
     <p>Choose your open co-op session, or create a lobby. Your partner joins with their own Twitch account.</p>
     <SessionList ref="picker" :case-id="caseId" :model-value="session" selectable @update:model-value="choose" @loaded="loaded" />
     <a v-if="account.state.kind === 'signed-out'" class="gs-btn gs-btn--gold" :href="TWITCH_START">Connect Twitch</a>
-    <button v-else type="button" class="gs-btn gs-btn--gold" :disabled="busy || account.state.kind !== 'signed-in'" @click="create">{{ busy ? 'Please wait…' : createKey ? 'Retry lobby creation' : 'Create co-op lobby' }}</button>
+    <button v-else type="button" class="gs-btn gs-btn--gold" :disabled="busy || account.state.kind !== 'signed-in' || !!createAttempt?.previousSessionId" @click="create">{{ busy ? 'Please wait…' : createAttempt ? 'Retry lobby creation' : 'Create co-op lobby' }}</button>
+    <CaseSwitchNotice v-if="pendingSwitch" :key="pendingSwitch.sessionId" :current="pendingSwitch" :next-title="caseTitle" :busy="busy" :stopped="createAttempt?.stopConfirmed ?? false" @confirm="switchCase" />
     <form v-if="selected && selected.role === 'host' && !selected.needsRejoin" class="invite-form" @submit.prevent="invite">
       <p>Selected: <b>{{ selected.title }}</b> · {{ selected.phase.replaceAll('_', ' ').toLowerCase() }}</p>
       <template v-if="canInvite">

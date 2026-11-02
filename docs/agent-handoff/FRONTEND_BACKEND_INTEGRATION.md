@@ -2,6 +2,14 @@
 
 Updated 3 November 2026 WITA. The latest compatibility pass preserves the immersive frontend and local practice experiences. No deployment, dependency, migration, or backend API change is part of this frontend pass.
 
+## Switching unfinished cases
+
+From `/play`, selecting a different live case refreshes owned-session discovery and offers **Stop current case and start this one**, alongside continuation of the current case. The same confirmation is available when creating a co-op lobby from another case. Selecting the current case continues it. Partner sessions are never offered for stopping.
+
+The confirmation explains that stopping is terminal and affects the co-op partner. Only an accepted server stop can advance to creation. `sessionLaunch.ts` keeps separate stop/create idempotency keys across uncertain responses, skips an already confirmed stop, validates the new case snapshot and rejects terminal replayed sessions. A newly discovered case in another tab needs a fresh confirmation bound to that session. No polling or additional socket connection is introduced.
+
+The focused checks cover ten request/retry regressions and five browser flows, including the phone layout and lost creation followed by another tab changing cases. Actual PostgreSQL/API verification is recorded separately in the dated local machine evidence. Real production account/gameplay acceptance retains its existing boundary.
+
 ## Latest immersive integration
 
 - `LiveCaseExperience.vue` is the mounted Q01/M01/C01 live presentation. `view=dashboard` opens its host panel immediately; ordinary session links open the scene. Finished rounds do not offer Restart.

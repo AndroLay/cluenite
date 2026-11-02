@@ -103,7 +103,7 @@ onMounted(() => {
       </section>
     </div>
 
-    <LiveCoopLobby v-if="coopCase.kind === 'ready' && coopCase.value" :case-id="coopCase.value.id" />
+    <LiveCoopLobby v-if="coopCase.kind === 'ready' && coopCase.value" :case-id="coopCase.value.id" :case-title="coopCase.value.title" />
 
     <section class="co-how" aria-labelledby="co-how-title">
       <h2 id="co-how-title" class="gs-h2">How co-op works</h2>

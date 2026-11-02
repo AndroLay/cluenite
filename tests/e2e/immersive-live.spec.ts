@@ -478,10 +478,104 @@ test("offers the existing hosted session instead of creating a different case", 
   await page.goto(`${origin}/play`);
   await expect(page.getByRole("region", { name: "Saved sessions", exact: true }).getByText(M01_MISSING_TROPHY.title, { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Start case", exact: true }).click();
-  const notice = page.getByRole("alert");
+  const notice = page.getByRole("region", { name: "Switch case", exact: true });
   await expect(notice).toContainText(`${M01_MISSING_TROPHY.title} is still paused`);
   await expect(notice.getByRole("link", { name: `Continue ${M01_MISSING_TROPHY.title}`, exact: true })).toHaveAttribute("href", "/?session=existing-festival&view=dashboard");
+  await expect(notice.getByRole("button", { name: "Stop current case and start this one", exact: true })).toBeEnabled();
   expect(mutations).toBe(0);
+});
+
+test("stops the previous case before opening the selected case", async ({ page }) => {
+  const id = "switched-gallery";
+  reset(id, Q01_GALLERY_SHADOW, "READY");
+  const actions: { name: string; key: string | undefined }[] = [];
+  let stopped = false;
+  await page.route("**/api/me", route => route.fulfill({ json: { authenticated: true, profile: { login: "fixture_host", displayName: "Fixture Host" }, twitch: { connected: true, chatStatus: "connected" }, csrfToken: "fixture-csrf" } }));
+  await page.route("**/api/sessions?**", route => route.fulfill({ json: { sessions: stopped ? [] : [{ sessionId: "previous-festival", caseId: M01_MISSING_TROPHY.id, title: M01_MISSING_TROPHY.title, phase: "ACTIVE", revision: 4, team: "A", role: "host", needsRejoin: false, updatedAt: "2026-11-03T00:00:00.000Z" }] } }));
+  await page.route("**/api/sessions/previous-festival/stop", async route => {
+    actions.push({ name: "stop", key: route.request().headers()["idempotency-key"] });
+    expect(route.request().headers()["x-csrf-token"]).toBe("fixture-csrf");
+    stopped = true;
+    await route.fulfill({ json: { result: { code: "ACCEPTED_NEW", reason: null, message: "Round stopped.", missing: [], revision: 5 } } });
+  });
+  await page.route("**/api/sessions", async route => {
+    expect(stopped).toBe(true);
+    expect(route.request().postDataJSON()).toEqual({ caseId: Q01_GALLERY_SHADOW.id });
+    actions.push({ name: "create", key: route.request().headers()["idempotency-key"] });
+    await route.fulfill({ status: 201, json: { snapshot: projection(id) } });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${origin}/play`);
+  await page.getByRole("button", { name: "Start case", exact: true }).click();
+  const notice = page.getByRole("region", { name: "Switch case", exact: true });
+  await expect(notice).toContainText("cannot be resumed");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  expect(actions).toHaveLength(0);
+  await notice.getByRole("button", { name: "Stop current case and start this one", exact: true }).click();
+  await page.waitForURL(`**/?session=${id}`);
+  await expect(page.getByRole("heading", { name: Q01_GALLERY_SHADOW.title, exact: true })).toBeVisible();
+  expect(actions.map(action => action.name)).toEqual(["stop", "create"]);
+  expect(actions[0].key).toMatch(/^[A-Za-z0-9_-]{16,128}$/);
+  expect(actions[1].key).toMatch(/^[A-Za-z0-9_-]{16,128}$/);
+  expect(actions[0].key).not.toBe(actions[1].key);
+});
+
+test("can stop a solo case before creating a co-op lobby", async ({ page }) => {
+  const id = "switched-coop";
+  reset(id, C01_HARBOR_SIGNAL, "COOP_WAITING");
+  let stopped = false, created = false;
+  const actions: string[] = [];
+  const summary = { sessionId: id, caseId: C01_HARBOR_SIGNAL.id, title: C01_HARBOR_SIGNAL.title, phase: "COOP_WAITING", revision: 0, team: "A", role: "host", needsRejoin: false, updatedAt: "2026-11-03T00:00:00.000Z" };
+  await page.route("**/api/me", route => route.fulfill({ json: { authenticated: true, profile: { login: "fixture_host", displayName: "Fixture Host" }, twitch: { connected: true, chatStatus: "connected" }, csrfToken: "fixture-csrf" } }));
+  await page.route("**/api/sessions?**", route => route.fulfill({ json: { sessions: created ? [summary] : stopped ? [] : [{ ...summary, sessionId: "previous-solo", caseId: Q01_GALLERY_SHADOW.id, title: Q01_GALLERY_SHADOW.title, phase: "ACTIVE" }] } }));
+  await page.route("**/api/sessions/previous-solo/stop", async route => {
+    stopped = true; actions.push("stop");
+    await route.fulfill({ json: { result: { code: "ACCEPTED_NEW", reason: null, message: "Round stopped.", missing: [], revision: 5 } } });
+  });
+  await page.route("**/api/sessions", async route => {
+    expect(stopped).toBe(true); created = true; actions.push("create");
+    expect(route.request().postDataJSON()).toEqual({ caseId: C01_HARBOR_SIGNAL.id });
+    await route.fulfill({ status: 201, json: { snapshot: projection(id) } });
+  });
+  await page.goto(`${origin}/coop`);
+  await page.getByRole("button", { name: "Create co-op lobby", exact: true }).click();
+  const notice = page.getByRole("region", { name: "Switch case", exact: true });
+  await expect(notice).toContainText(Q01_GALLERY_SHADOW.title);
+  expect(actions).toHaveLength(0);
+  await notice.getByRole("button", { name: "Stop current case and start this one", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Create invitation", exact: true })).toBeVisible();
+  await expect(notice).toHaveCount(0);
+  expect(actions).toEqual(["stop", "create"]);
+});
+
+test("binds a co-op replacement to the newly discovered case after a lost creation", async ({ page }) => {
+  const id = "fresh-coop-after-lost-create";
+  reset(id, C01_HARBOR_SIGNAL, "COOP_WAITING");
+  const keys: string[] = [];
+  let changedInAnotherTab = false, stopped = false, created = false;
+  const base = { sessionId: id, caseId: C01_HARBOR_SIGNAL.id, title: C01_HARBOR_SIGNAL.title, phase: "COOP_WAITING", revision: 0, team: "A", role: "host", needsRejoin: false, updatedAt: "2026-11-03T00:00:00.000Z" };
+  await page.route("**/api/me", route => route.fulfill({ json: { authenticated: true, profile: { login: "fixture_host", displayName: "Fixture Host" }, twitch: { connected: true, chatStatus: "connected" }, csrfToken: "fixture-csrf" } }));
+  await page.route("**/api/sessions?**", route => route.fulfill({ json: { sessions: created ? [base] : changedInAnotherTab && !stopped ? [{ ...base, sessionId: "another-tab-gallery", caseId: Q01_GALLERY_SHADOW.id, title: Q01_GALLERY_SHADOW.title, phase: "ACTIVE" }] : [] } }));
+  await page.route("**/api/sessions/another-tab-gallery/stop", async route => {
+    stopped = true;
+    await route.fulfill({ json: { result: { code: "ACCEPTED_NEW", reason: null, message: "Round stopped.", missing: [], revision: 5 } } });
+  });
+  await page.route("**/api/sessions", async route => {
+    keys.push(route.request().headers()["idempotency-key"]);
+    if (keys.length === 1) { changedInAnotherTab = true; await route.abort("failed"); return; }
+    expect(stopped).toBe(true);
+    created = true;
+    await route.fulfill({ status: 201, json: { snapshot: projection(id) } });
+  });
+  await page.goto(`${origin}/coop`);
+  await page.getByRole("button", { name: "Create co-op lobby", exact: true }).click();
+  await page.getByRole("button", { name: "Retry lobby creation", exact: true }).click();
+  const notice = page.getByRole("region", { name: "Switch case", exact: true });
+  await expect(notice).toContainText(Q01_GALLERY_SHADOW.title);
+  await notice.getByRole("button", { name: "Stop current case and start this one", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Create invitation", exact: true })).toBeVisible();
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).not.toBe(keys[1]);
 });
 
 test("searches all Manuscript objects and moves into the deduction workspace", async ({ page }, info) => {

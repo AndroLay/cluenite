@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onMounted, ref } from "vue";
-import { api, ApiError, apiMessage } from "../net/api";
-import { newIdempotencyKey } from "../net/idempotency";
+import { ApiError, apiMessage } from "../net/api";
 import SessionList from "./SessionList.vue";
+import CaseSwitchNotice from "./CaseSwitchNotice.vue";
 import type { SessionSummary } from "@cluenite/contracts";
-import { sessionHref } from "./sessions";
+import { listSessions, sessionHref } from "./sessions";
+import { launchSession, newSessionLaunch, type SessionLaunchAttempt } from "./sessionLaunch";
 import GameShell from "./GameShell.vue";
 import SiteIcon from "./SiteIcon.vue";
 import type { SiteIconName } from "./icons";
@@ -91,7 +92,9 @@ const startingId = ref<string | null>(null);
 const startError = ref("");
 const openHostedSession = ref<SessionSummary | null>(null);
 function onSessionsLoaded(rows: SessionSummary[]): void { openHostedSession.value = rows.find(row => row.role === "host" && !row.needsRejoin) ?? null; }
-const startKeys = new Map<string, string>();
+const savedSessions = ref<InstanceType<typeof SessionList> | null>(null);
+const startAttempts = new Map<string, SessionLaunchAttempt>();
+const pendingSwitch = ref<{ current: SessionSummary; next: CaseSummary; attempt: SessionLaunchAttempt | null } | null>(null);
 
 const modeCases = computed(() => cases.value.filter((item) => item.mode === activeMode.value));
 const visibleCases = computed(() => {
@@ -163,6 +166,8 @@ function retryAll(): void {
 }
 
 function describeStartError(status: number, code: string): string {
+  if (code === "case_launch_ended") return "That case has already ended. Choose a case again to create a new round.";
+  if (code === "case_stop_not_accepted") return "The current case could not be stopped. No new case was started. Retry switching, or continue the current case.";
   if (code === "idempotency_conflict") return "Another hosted case is still open. Continue it from Saved sessions, or stop it in its host controls before choosing a different case.";
   if (status === 401) return "Your Twitch session ended. Connect Twitch again, then start the case.";
   if (status === 403 && code === "origin_rejected") {
@@ -178,30 +183,66 @@ function describeStartError(status: number, code: string): string {
 }
 
 async function startCase(caseItem: CaseSummary): Promise<void> {
-  if (!canStart.value || caseItem.mode === "coop") return;
-  if (openHostedSession.value && openHostedSession.value.caseId !== caseItem.id) {
-    startError.value = `${openHostedSession.value.title} is still ${openHostedSession.value.phase.toLowerCase()}. Continue that session, or stop it in Host controls before creating a different case.`;
-    return;
-  }
+  if (!canStart.value || caseItem.mode === "coop" || pendingSwitch.value?.attempt) return;
   playUi("select");
   startingId.value = caseItem.id;
   startError.value = "";
   try {
-    const key = startKeys.get(caseItem.id) ?? newIdempotencyKey();
-    startKeys.set(caseItem.id, key);
-    const body = await api("/api/sessions", {
-      method: "POST", csrf: csrf.value, key, body: { caseId: caseItem.id },
-    });
-    const sessionId = record(body.snapshot)?.sessionId;
-    if (typeof sessionId !== "string" || !/^[A-Za-z0-9_-]{1,64}$/.test(sessionId)) throw new ApiError(0, "response_incomplete");
-    startKeys.delete(caseItem.id);
-    window.location.assign(`/?session=${encodeURIComponent(sessionId)}`);
+    const current = (await listSessions()).find(row => row.role === "host" && !row.needsRejoin) ?? null;
+    openHostedSession.value = current;
+    if (current && current.caseId !== caseItem.id) {
+      pendingSwitch.value = { current, next: caseItem, attempt: null };
+      startingId.value = null;
+      return;
+    }
+    pendingSwitch.value = null;
+    if (current) { window.location.assign(sessionHref(current)); return; }
+    const attempt = startAttempts.get(caseItem.id) ?? newSessionLaunch(caseItem.id);
+    startAttempts.set(caseItem.id, attempt);
+    const snapshot = await launchSession(attempt, csrf.value);
+    startAttempts.delete(caseItem.id);
+    window.location.assign(`/?session=${encodeURIComponent(snapshot.sessionId)}`);
   } catch (cause) {
+    await startFailed(cause, caseItem);
+  }
+}
+
+async function switchCase(): Promise<void> {
+  const choice = pendingSwitch.value;
+  if (!canStart.value || !choice) return;
+  startingId.value = choice.next.id;
+  startError.value = "";
+  choice.attempt ??= newSessionLaunch(choice.next.id, choice.current.sessionId);
+  try {
+    const snapshot = await launchSession(choice.attempt, csrf.value);
+    window.location.assign(`/?session=${encodeURIComponent(snapshot.sessionId)}`);
+  } catch (cause) {
+    if (choice.attempt.stopConfirmed) { openHostedSession.value = null; void savedSessions.value?.reload(); }
+    await startFailed(cause, choice.next);
+  }
+}
+
+async function startFailed(cause: unknown, next: CaseSummary): Promise<void> {
+    if (cause instanceof ApiError && cause.code === "case_launch_ended") {
+      startAttempts.delete(next.id);
+      pendingSwitch.value = null;
+    }
+    // Another tab may create a round between discovery and creation. A different
+    // round always needs its own explicit stop confirmation.
+    if (cause instanceof ApiError && cause.code === "idempotency_conflict") {
+      try {
+        const current = (await listSessions()).find(row => row.role === "host" && !row.needsRejoin) ?? null;
+        openHostedSession.value = current;
+        if (current && current.caseId !== next.id) {
+          pendingSwitch.value = { current, next, attempt: null };
+          startAttempts.delete(next.id);
+        }
+      } catch { /* Keep the original failure and retained receipt for a safe retry. */ }
+    }
     startError.value = cause instanceof ApiError && cause.status > 0 && cause.status < 500
       ? describeStartError(cause.status, cause.code) : apiMessage(cause);
     startingId.value = null;
     if (cause instanceof ApiError && (cause.status === 401 || cause.code === "csrf_rejected")) void checkAccount(true);
-  }
 }
 
 function pickMode(id: ModeId): void {
@@ -282,7 +323,9 @@ onMounted(() => {
       <a v-if="openHostedSession" class="gs-btn gs-btn--gold" :href="sessionHref(openHostedSession)">Continue {{ openHostedSession.title }} <SiteIcon name="arrow-right" /></a>
     </p>
 
-    <SessionList @loaded="onSessionsLoaded" />
+    <CaseSwitchNotice v-if="pendingSwitch" :key="pendingSwitch.current.sessionId + pendingSwitch.next.id" :current="pendingSwitch.current" :next-title="pendingSwitch.next.title" :busy="startingId !== null" :stopped="pendingSwitch.attempt?.stopConfirmed ?? false" @confirm="switchCase" />
+
+    <SessionList ref="savedSessions" @loaded="onSessionsLoaded" />
 
     <section class="pl-cases" aria-labelledby="pl-cases-title" data-enter style="--i: 5">
       <h2 id="pl-cases-title" class="visually-hidden">{{ MODES.find((mode) => mode.id === activeMode)?.label }} cases</h2>
@@ -339,7 +382,7 @@ onMounted(() => {
               v-else
               type="button"
               class="gs-btn gs-btn--gold pl-start"
-              :disabled="!canStart || item.mode === 'coop'"
+              :disabled="!canStart || item.mode === 'coop' || !!pendingSwitch?.attempt"
               @click="startCase(item)"
             >
               <SiteIcon v-if="startingId === item.id" name="spinner" class="gs-spin" />
