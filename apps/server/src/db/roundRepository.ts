@@ -657,6 +657,7 @@ export class PostgresRoundRepository {
   constructor(
     private readonly pool: Pool,
     private readonly now: () => number = Date.now,
+    private readonly isTwitchChannelReady?: (twitchUserId: string) => boolean,
   ) {}
 
   async createCoopInvitation(
@@ -1409,10 +1410,53 @@ export class PostgresRoundRepository {
         await client.query("COMMIT");
         return duplicate;
       }
-      const transition = applyCommand(state, input.text, this.now(), {
+      let transition = applyCommand(state, input.text, this.now(), {
         actor: input.source,
         team,
       });
+      const joint = def.mode === "coop" ? def.jointProof : undefined;
+      if (
+        state.source === "live" &&
+        joint &&
+        ((!state.unlocked.has(joint.evidenceId) &&
+          transition.state.unlocked.has(joint.evidenceId)) ||
+          (state.solvedBy === null &&
+            transition.state.solvedBy !== null &&
+            def.proof.evidence.some((item) => item.id === joint.evidenceId)))
+      ) {
+        // Account locks serialize joint progress with account-first revocation.
+        // The session lock already serializes invitation and rejoin membership changes.
+        const participants = await client.query<{
+          broadcaster_id: string;
+          team_role: TeamRole;
+        }>(
+          `SELECT sc.broadcaster_id, sc.team_role
+           FROM session_channels sc
+           JOIN twitch_accounts a ON a.twitch_user_id = sc.broadcaster_id
+           WHERE sc.session_id = $1 AND sc.revoked_at IS NULL AND a.revoked_at IS NULL
+           ORDER BY a.twitch_user_id FOR SHARE OF a`,
+          [input.sessionId],
+        );
+        const ready =
+          participants.rows.length === 2 &&
+          new Set(participants.rows.map((item) => item.team_role)).size === 2 &&
+          participants.rows.every(
+            (item) => this.isTwitchChannelReady?.(item.broadcaster_id) ?? true,
+          );
+        if (!ready) {
+          transition = {
+            state,
+            result: {
+              code: "NOT_AVAILABLE",
+              reason: "TEAM_REQUIRED",
+              message:
+                "Both stations must reconnect before joint verification can continue.",
+              missing: [],
+              revision: state.revision,
+            },
+          };
+        }
+      }
       const result = transition.result;
       const persistedId = `${input.sessionId}:${requestIds.primary}`;
       const pending: CommandResult = {

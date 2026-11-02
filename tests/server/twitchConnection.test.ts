@@ -59,7 +59,7 @@ function eventSubMessage(
 }
 
 describe("Twitch EventSub connection lifecycle", () => {
-  it("subscribes after welcome, migrates planned reconnects, and resubscribes after an unexpected loss", async () => {
+  it("migrates consecutive planned reconnects without resubscribing, then recovers from an unexpected loss", async () => {
     const account: DecryptedTwitchAccount = {
       credentialVersion: "test-version",
       identity: {
@@ -207,15 +207,45 @@ describe("Twitch EventSub connection lifecycle", () => {
     ).toBe(true);
     expect(api.subscribeChat).toHaveBeenCalledTimes(1);
 
-    sockets[1]!.close(1006, "network loss");
-    expect(manager.diagnosticsForUser("1971641").activeSubscriptions).toBe(0);
-    await vi.waitFor(() => expect(sockets).toHaveLength(3), {
-      timeout: 3000,
-      interval: 25,
-    });
+    sockets[1]!.send(
+      eventSubMessage("session_reconnect", {
+        session: {
+          reconnect_url:
+            "wss://eventsub.wss.twitch.tv/ws?session_id=second-handoff",
+        },
+      }),
+    );
+    await flushMicrotasks();
+    expect(urls[2]).toBe(
+      "wss://eventsub.wss.twitch.tv/ws?session_id=second-handoff",
+    );
+    expect(sockets[1]!.closes).toHaveLength(0);
     sockets[2]!.send(
       eventSubMessage("session_welcome", {
         session: { id: "eventsub-session-3", keepalive_timeout_seconds: 60 },
+      }),
+    );
+    await flushMicrotasks();
+    expect(sockets[1]!.closes).toContainEqual({
+      code: 1000,
+      reason: "connection migrated",
+    });
+    expect(manager.diagnosticsForUser("1971641")).toMatchObject({
+      status: "connected",
+      activeSubscriptions: 1,
+      lastNotificationAt: expect.any(String),
+    });
+    expect(api.subscribeChat).toHaveBeenCalledTimes(1);
+
+    sockets[2]!.close(1006, "network loss");
+    expect(manager.diagnosticsForUser("1971641").activeSubscriptions).toBe(0);
+    await vi.waitFor(() => expect(sockets).toHaveLength(4), {
+      timeout: 3000,
+      interval: 25,
+    });
+    sockets[3]!.send(
+      eventSubMessage("session_welcome", {
+        session: { id: "eventsub-session-4", keepalive_timeout_seconds: 60 },
       }),
     );
     await flushMicrotasks();
@@ -227,7 +257,7 @@ describe("Twitch EventSub connection lifecycle", () => {
       lastNotificationAt: expect.any(String),
     });
 
-    sockets[2]!.send(
+    sockets[3]!.send(
       eventSubMessage(
         "revocation",
         {

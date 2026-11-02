@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Pool } from "pg";
+import { SessionStore } from "../src/auth/sessionStore.js";
 import {
   CoopInviteExpiredError,
   PostgresRoundRepository,
@@ -53,6 +54,50 @@ describeWithDatabase("Postgres round repository", () => {
       idempotencyKey: randomUUID(),
     });
     return created.sessionId;
+  }
+
+  async function createActiveCoop(target = repository) {
+    const hostA = await seedHost();
+    const hostB = await seedHost();
+    const { sessionId } = await target.create({
+      hostTwitchId: hostA,
+      caseId: "C01_HARBOR_SIGNAL",
+      idempotencyKey: randomUUID(),
+    });
+    const tokenHash = randomUUID();
+    const invite = await target.createCoopInvitation({
+      sessionId,
+      inviterTwitchId: hostA,
+      inviteeTwitchId: hostB,
+      tokenHash,
+      idempotencyKey: randomUUID(),
+    });
+    await target.acceptCoopInvitation({
+      inviteId: invite!.inviteId,
+      inviteeTwitchId: hostB,
+      tokenHash,
+      idempotencyKey: randomUUID(),
+    });
+    await target.control({
+      sessionId,
+      hostTwitchId: hostA,
+      action: "start",
+      idempotencyKey: randomUUID(),
+    });
+    return {
+      hostA,
+      hostB,
+      sessionId,
+      input: (team: "A" | "B", text: string) =>
+        target.applyInput({
+          sessionId,
+          inputId: randomUUID(),
+          actorTwitchId: `viewer-${team}`,
+          text,
+          source: "twitch",
+          channelId: team === "A" ? hostA : hostB,
+        }),
+    };
   }
 
   it("pins Q01 and returns the existing session for a repeated create key", async () => {
@@ -756,6 +801,97 @@ describeWithDatabase("Postgres round repository", () => {
     expect(teamB?.team).toBe("B");
     expect(teamA?.clues.map((clue) => clue.id)).toEqual(["COAST"]);
     expect(teamB?.clues.map((clue) => clue.id)).toEqual(["RADAR", "MANUAL"]);
+  });
+
+  it("preserves local progress but freezes joint proof until the revoked partner reauthorizes and rejoins", async () => {
+    const coop = await createActiveCoop();
+    const sessions = new SessionStore(
+      pool,
+      Buffer.alloc(32, 1),
+      Buffer.alloc(32, 2),
+      Buffer.alloc(32, 3),
+    );
+    await coop.input("B", "!verify B17");
+    await coop.input("B", "!share MANUAL_B17_212");
+    expect(await sessions.markTwitchRevoked(coop.hostB)).toBe(true);
+    expect((await coop.input("A", "!scan P4")).code).toBe("ACCEPTED_NEW");
+    const before = await repository.snapshotForParticipant(
+      coop.sessionId,
+      coop.hostA,
+    );
+    expect(await coop.input("A", "!share SCAN_P4")).toMatchObject({
+      code: "NOT_AVAILABLE",
+      reason: "TEAM_REQUIRED",
+      revision: before!.revision,
+    });
+    expect((await coop.input("A", "!solve B17")).code).not.toBe("ACCEPTED_NEW");
+    const waiting = await repository.snapshotForParticipant(
+      coop.sessionId,
+      coop.hostA,
+    );
+    expect(waiting!.phase).toBe("ACTIVE");
+    expect(waiting!.evidence.map((item) => item.id)).toContain("SCAN_P4");
+    expect(waiting!.evidence.map((item) => item.id)).not.toContain(
+      "JOINT_PROOF_B17",
+    );
+
+    await sessions.saveTwitchAccount(
+      { id: coop.hostB, login: "returned", displayName: "Returned partner" },
+      {
+        accessToken: "fixture-access",
+        refreshToken: "fixture-refresh",
+        scopes: ["user:read:chat"],
+        expiresIn: 3600,
+      },
+    );
+    expect((await coop.input("A", "!share SCAN_P4")).code).toBe(
+      "NOT_AVAILABLE",
+    );
+    expect(
+      await repository.rejoinCoopSession({
+        sessionId: coop.sessionId,
+        broadcasterId: coop.hostB,
+      }),
+    ).toMatchObject({ alreadyRejoined: false });
+    expect((await coop.input("A", "!share SCAN_P4")).code).toBe("ACCEPTED_NEW");
+    expect((await coop.input("A", "!solve B17")).code).toBe("ACCEPTED_NEW");
+    expect(
+      (await repository.snapshotForParticipant(coop.sessionId, coop.hostB))!
+        .stage,
+    ).toBe("reveal");
+  });
+
+  it("freezes joint proof and proven verdicts during either provider outage without pausing local work", async () => {
+    const disconnected = new Set<string>();
+    const liveRepository = new PostgresRoundRepository(
+      pool,
+      () => 1_800_000_000_000,
+      (userId) => !disconnected.has(userId),
+    );
+    const coop = await createActiveCoop(liveRepository);
+    await coop.input("B", "!verify B17");
+    await coop.input("B", "!share MANUAL_B17_212");
+    disconnected.add(coop.hostB);
+    expect((await coop.input("A", "!scan P4")).code).toBe("ACCEPTED_NEW");
+    expect(await coop.input("A", "!share SCAN_P4")).toMatchObject({
+      code: "NOT_AVAILABLE",
+      reason: "TEAM_REQUIRED",
+    });
+    disconnected.clear();
+    expect((await coop.input("A", "!share SCAN_P4")).code).toBe("ACCEPTED_NEW");
+    disconnected.add(coop.hostA);
+    const before = await liveRepository.snapshotForParticipant(
+      coop.sessionId,
+      coop.hostB,
+    );
+    expect(await coop.input("B", "!solve B17")).toMatchObject({
+      code: "NOT_AVAILABLE",
+      reason: "TEAM_REQUIRED",
+      revision: before!.revision,
+    });
+    expect((await coop.input("B", "!look RADAR")).code).toBe("ACCEPTED_NEW");
+    disconnected.clear();
+    expect((await coop.input("B", "!solve B17")).code).toBe("ACCEPTED_NEW");
   });
 
   it("persists expiration when the first acceptance attempt arrives after the deadline", async () => {

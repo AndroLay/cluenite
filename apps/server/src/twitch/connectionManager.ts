@@ -515,7 +515,7 @@ export class TwitchConnectionManager {
           return;
         }
         if (messageType === "session_reconnect") {
-          if (mode !== "primary" || state.socket !== socket) return;
+          if (state.socket !== socket) return;
           const payloadSession = message.payload.session;
           const reconnectUrl = isRecord(payloadSession)
             ? safeReconnectUrl(payloadSession.reconnect_url)

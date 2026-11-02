@@ -54,7 +54,13 @@ const database = new Pool({
   idleTimeoutMillis: 30_000,
   query_timeout: 15_000,
 });
-const rounds = new PostgresRoundRepository(database);
+const rounds = new PostgresRoundRepository(
+  database,
+  Date.now,
+  config.twitchAdapter === "twitch"
+    ? (userId) => twitchConnections?.statusForUser(userId) === "connected"
+    : undefined,
+);
 const sockets = new SocketServer(app.server, { path: "/socket.io" });
 const authConfigured = Boolean(
   config.sessionHashKey && config.dataEncryptionKey && config.overlayHashKey,

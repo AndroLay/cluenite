@@ -2,7 +2,7 @@
 
 **Owner:** integration operator and consenting streamer account owners.
 
-**Reconciled on 2 November 2026:** backend source tests, real broadcaster OAuth, authenticated HTTP/Socket.IO/overlay checks, one real operator-triggered refresh, and refreshed-credential subscription recovery pass. Real chat-to-gameplay after refresh, two-channel co-op, provider revocation/reauthorization/handoff, and actual OBS acceptance remain open. The current user scope stops before deployment. See the [predeploy guide](../operations/BACKEND_PREDEPLOY_2026-11-02.md).
+**Reconciled on 2 November 2026, 09:50 UTC:** 113 source tests, both real account authorizations, authenticated HTTP/Socket.IO/overlay checks, real operator-triggered and clock-accelerated scheduled refresh, and actual isolated OBS rendering/reload/credential revocation pass. Both EventSub workers are connected. Twitch rejects the first API chat send with `msg_rejected`; real chat-to-gameplay, two-channel co-op gameplay, and real account revocation/reauthorization or provider-directed handoff remain open. The current user scope stops before deployment. See [backend progress](BACKEND_PROGRESS.md) for evidence and the separate readiness-probe failure, and the [predeploy guide](../operations/BACKEND_PREDEPLOY_2026-11-02.md).
 
 ## Current local preparation
 
@@ -11,7 +11,7 @@
 - The owner completed Authorize in the main Zen profile after the local login opened there. The managed bridge remains unavailable, and the Windows native provider cannot focus windows. The isolated headless proof is separate and did not supply the real login. The owner's latest instruction requires background work; browser input/new-tab actions have stopped.
 - The real browser's `/api/me` and diagnostics calls pass. A separate background provider check validates the stored user token, expected account/profile, required chat-read scope, and one matching enabled chat subscription. No browser cookies or provider tokens were exported to reports.
 - All 21 authenticated host/overlay browser checks pass. The newly created operator round was stopped in `CANCELLED`, its overlay credential was revoked, and its sockets closed. These checks send no Twitch chat and do not verify OBS desktop rendering.
-- No consenting partner channel is selected. No OBS process was observed during the presence check. Real two-channel and OBS acceptance remain open.
+- The owner authorized their second account `androcadangan` in Brave, alongside primary `layordna`. Both identities/read scopes and active workers are verified; the secondary explicitly grants test chat-write scope. Twitch rejects the API message before delivery, and a separate active secondary Q01 remains untouched. Actual OBS is tested in a private portable instance and now closed; its host-driven inputs are separate from pending real-chat acceptance.
 - The previously owned local API was restarted to load the saved credentials; Vite was preserved. Readiness, public web, case proxy, unauthenticated identity rejection, and the OAuth-start redirect pass. The runtime record is `.cache/twitch-real-20261102-053344.json` and must be rechecked before any later process operation.
 - Later background-only verification fixed startup-only asset registration. The current local suite passes 111 tests in 23 files with the selected owned real-adapter API stopped temporarily for database-wide advisory-lock isolation and restored afterwards. At 07:58 UTC, 46 integration checks pass, including exact built asset delivery and 16 public page/viewport checks across API/Vite without overflow or uncaught browser errors. `/guide` header links measure at least 44px at 390px; other navigation targets are not certified. The latest runtime observation is `.cache/background-api-current-20261102.json`, not the earlier PID record.
 - Stored authorization and one enabled matching subscription recover after the API restarts. Headless callback failure inputs are synthetic and separate from actual provider denial/revocation. The empty headless context was closed; the main Zen profile was untouched. Maintenance preview has `applied: false` and all eligible counts zero.
@@ -41,13 +41,14 @@
 - [ ] With permission for this exact channel, send `!look CAM`, `!look SCHEDULE`, and `!link CAM_R07 SCHEDULE_R07` in real chat. Confirm persisted revisions and authorized Socket.IO updates. Submit a verdict only after proof exists.
 - [ ] Correlate a provider message ID with one stored receipt/revision. Replaying that same ID is a controlled harness test; sending another chat message creates a different provider ID and does not reproduce duplicate delivery.
 - [x] Complete one real operator-triggered refresh through the application API client and encrypted version-checked store. Ten checks confirm replacement-token persistence, unchanged identity/scope, and preserved browser sessions. After a hidden API reload, the enabled subscription is newly created after that restart. No new consent, Client Secret/key change, or account revocation occurred.
-- [ ] Process a real command after refresh and correlate its persisted proof/update. Natural-expiry scheduling and a provider-directed reconnect/handoff have not been observed; do not label operator-triggered refresh/restart as those events. See Twitch's [WebSocket lifecycle](https://dev.twitch.tv/docs/eventsub/handling-websocket-events/).
+- [x] Exercise the production scheduled-refresh timer with real Twitch credentials and encrypted persistence. Eleven checks pass after its actual 60-second minimum delay using an injected advanced clock. This is an accelerated scheduled path; natural expiry is not observed.
+- [ ] Process a real command after refresh and correlate its persisted proof/update. An actual provider-directed handoff has not been observed. The consecutive-handoff fixture regression passes; do not present it as a real provider event. See Twitch's [WebSocket lifecycle](https://dev.twitch.tv/docs/eventsub/handling-websocket-events/).
 - [ ] After active test sessions are ready to be paused, exercise the authorized disconnect/revoke flow. Confirm local sessions lose access, the worker stops, and active games pause. Reauthorize before other signed-in checks.
 
 ## Two-channel co-op
 
-- [ ] Record primary/partner channel usernames and both owners' consent. Obtain explicit permission before sending test messages to either channel. Never select or message an unrelated public channel automatically.
-- [ ] Sign in both real broadcasters with the same app in separate browser sessions. Verify each through `/api/me`; never export cookies or tokens.
+- [x] Owner-selected channels are `layordna` and `androcadangan`, both owned by the requester, for the explicitly requested integration tests. Provider consent remains separate. Before sending, validate exact identities/scopes and ensure Shared Chat contains no unrelated participants.
+- [x] Both owners completed real OAuth in separate browsers. Independent Twitch identity/scope validation and authenticated local operator diagnostics confirm both accounts/workers. Temporary operator cookies stay in memory and are revoked; they are not exported browser cookies or evidence of full frontend acceptance.
 - [ ] Create a C01 invitation from the primary host; verify only the named invitee can accept. Check decline/expiry separately from the active accepted session.
 - [ ] Accept as the partner and start through the implemented host lifecycle. Confirm team-specific snapshots hide the other workstation's private evidence.
 - [ ] Process authorized real commands from both channels. Confirm independent progress, a shared breakthrough, attribution without duplicate credit, and the final proof/reveal.
@@ -57,12 +58,13 @@ Use the exact [API and Socket.IO contracts](BACKEND_CONTRACTS.md). Frontend stat
 
 ## OBS Studio Browser Source
 
-- [ ] Open actual desktop OBS. Create a test scene/source without overwriting the streamer's production setup or starting a broadcast.
-- [ ] Issue an overlay credential as the authenticated host and privately configure the returned Browser Source URL. Never include its fragment token in shared evidence.
-- [ ] Verify transparent rendering at 1280 x 720, current snapshot recovery, and a visible real-chat update. A browser screenshot alone is not OBS evidence.
+- [x] Run actual OBS Studio 31.0.3 in an isolated portable copy on a private nonactive desktop. The main input desktop stays `Default`; no broadcast, recording, or virtual camera starts. User configuration is untouched.
+- [x] Issue a credential for a new temporary operator-owned round and configure its Browser Source privately. Six PNGs come from OBS itself; no credential appears in shared evidence.
+- [x] Verify 1280 x 720 rendering, transparent surrounding pixels, host-driven reveal, and current snapshot recovery. These are actual OBS captures, not Chrome captures or real-chat proof.
+- [ ] Verify a visible real-chat update in actual OBS after secondary provider consent.
 - [ ] Confirm an overlay mutation is rejected: only authenticated host controls or authorized chat may mutate the game.
-- [ ] Revoke the test credential and confirm the old source loses access. Issue a replacement before later reconnect checks.
-- [ ] Restart/reload the test source and verify recovery without changing unrelated OBS configuration.
+- [x] Revoke the test credential and confirm the old source displays disconnected status. The temporary round is resolved, its operator session is revoked, and the test scene/input are removed.
+- [x] Reload the test Browser Source and verify durable reveal recovery. Unrelated OBS configuration is unchanged.
 
 ## Evidence and completion
 
