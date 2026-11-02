@@ -1,57 +1,75 @@
-# Twitch OAuth, EventSub, and OBS verification checklist
+# Twitch OAuth, EventSub, co-op, and OBS verification checklist
 
-**Owner:** integration operator / streamer account owner  
-**Reconciled on 2026-11-02:** real Twitch, OBS Studio, Render, and player acceptance remain unverified in this pass. Mock tests do not count as external verification. See [status](../STATUS.md).
+**Owner:** integration operator and consenting streamer account owners.
 
-## Select the verification target
+**Reconciled on 2 November 2026:** backend source and synthetic-provider tests pass. Real Twitch and OBS acceptance remain open. The current user scope stops before deployment. See the [predeploy guide](../operations/BACKEND_PREDEPLOY_2026-11-02.md).
 
-For local OAuth, use `PUBLIC_ORIGIN` and the exact callback in [local setup](../../HOW_TO_RUN.md). Render steps below apply only to a selected deployed target. Verify the actual process/version or deployed commit; old port observations are historical.
+## Current local preparation
 
-The web UI does not yet issue OBS credentials or complete co-op invitations. Use the implemented [API contracts](BACKEND_CONTRACTS.md) for authorized integration and keep credentials private.
+- The ignored root `.env` now contains three independently generated application security keys. Development configuration parsing and an AES-GCM round trip pass. Existing nonempty settings were preserved. A prior read-only query found zero stored Twitch accounts in the local application database.
+- `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, and `TWITCH_REDIRECT_URI` remain unset. Production preflight correctly fails; keys alone do not enable real OAuth.
+- Zen processes are running, but both supported control surfaces report unavailable native/browser hosts. No Twitch app or provider credential was created. The owner selected reconnecting Zen.
+- No consenting partner channel is selected. No OBS process was observed during the presence check. Real two-channel and OBS acceptance remain open.
+- No shared API process was restarted. Saving `.env` does not update a running server.
 
-## Before OAuth
+## Select the local target and register Twitch
 
-- [ ] Confirm the Render web service and `cluenite-db` exist in the same workspace and Singapore region. The service uses the database's internal connection string through `fromDatabase`; keep public database access disabled unless an external operator explicitly needs it.
-- [ ] Set `PUBLIC_ORIGIN` to the actual HTTPS Render/custom domain. Do not retain the placeholder if the service receives a different hostname.
-- [ ] Register exactly `${PUBLIC_ORIGIN}/api/auth/twitch/callback` as the OAuth redirect URI in Twitch Developer Console and set the same full URL in `TWITCH_REDIRECT_URI`.
-- [ ] Set `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET` in the Render service environment. `sync: false` values are not automatically supplied when syncing an existing Blueprint; enter or update them in the Render Dashboard.
-- [ ] Set `DATA_ENCRYPTION_KEY` to canonical base64 for exactly 32 random bytes. Keep it stable across deploys; changing it without re-encrypting stored tokens makes them unreadable.
-- [ ] Confirm `SESSION_SIGNING_SECRET` and `OVERLAY_TOKEN_SIGNING_KEY` each contain at least 32 bytes. The Blueprint generates them for new service environments; check existing environments because generated values are not proof that the current service has them.
-- [ ] Set `NODE_ENV=production` and `TWITCH_ADAPTER=twitch`. Render provides `PORT`; the app binds to `0.0.0.0`.
-- [ ] Confirm outbound HTTPS to `id.twitch.tv`, `api.twitch.tv`, and outbound WSS to `eventsub.wss.twitch.tv` is available from the service.
-- [ ] Confirm the current local production build; dated results are in `docs/STATUS.md`. A clean Vite dev startup initially failed to resolve the `tailwindcss` CSS import without a temporary test alias; the frontend should reconcile its undeclared direct dependency and confirm a fresh dev install.
-- [ ] Confirm a clean Render build/deploy. A passing local build is not proof of Render deployment.
+- [ ] Select the browser origin and API port using [local setup](../../HOW_TO_RUN.md). `PUBLIC_ORIGIN` must exactly match the browser origin. Vite must proxy `/api` and `/socket.io` to the same API process.
+- [ ] Verify that process serves the current source/build, database readiness, and current assets. Prefer an owned process on a free port; do not terminate a shared listener or assume it reloaded configuration.
+- [ ] Select the exact callback for that process. The default split-origin setup documents `http://localhost:10000/api/auth/twitch/callback`; a callback through Vite instead needs its exact browser-origin URL and working proxy. These are different registrations. Do not invent a future Render hostname.
+- [ ] Follow Twitch's [app registration instructions](https://dev.twitch.tv/docs/authentication/register-app) in the selected, signed-in Zen account. Email verification, 2FA, or an interactive challenge may require the owner to act.
+- [ ] Inspect existing registrations before creating one. For a new app, use an available Cluenite name, the selected callback, and the appropriate category. Select a confidential/server client if offered.
+- [ ] Obtain that app's client ID and initial secret. Do not replace an existing app's secret without checking its use: Twitch invalidates the previous secret.
+- [ ] Save the ID, secret, and callback together in the ignored `.env`. Never print them or include them in chat, logs, screenshots, or Git. Preserve the three application keys already generated.
+- [ ] Parse development configuration and restart only the selected, owned API process. Keep `TWITCH_ADAPTER=twitch`; there is no login bypass.
+- [ ] Confirm outbound HTTPS to `id.twitch.tv` and `api.twitch.tv`, and WSS to `eventsub.wss.twitch.tv`, from this target.
 
-## OAuth and chat subscription
+## OAuth and one-channel gameplay
 
-- [ ] Open `${PUBLIC_ORIGIN}/api/auth/twitch/start` in a browser and verify Twitch shows the Cluenite application and the `user:read:chat` scope.
-- [ ] Complete consent on the intended broadcaster account. Confirm the callback returns to `PUBLIC_ORIGIN`, sets the HttpOnly `cluenite_session` cookie, and `/api/me` returns that broadcaster's profile.
-- [ ] Confirm `/api/ops/diagnostics` reports Twitch status and active subscription count. A `connected` UI label alone is not proof that a chat message was received.
-- [ ] Verify the EventSub WebSocket receives `session_welcome`, the backend creates a `channel.chat.message` subscription, and a real chat message from that channel arrives.
-- [ ] Send a harmless valid command (for example `!look CAM`) in the broadcaster's actual Twitch chat. Confirm the expected revision/evidence is persisted in PostgreSQL and the authorized browser/overlay receives it through Socket.IO.
-- [ ] Send the same Twitch EventSub message again if the test harness permits. Confirm the revision and contribution credit do not duplicate.
-- [ ] Verify a real EventSub reconnect/handoff and token refresh. Confirm the connection returns to `ONLINE` and a later real command is processed once.
-- [ ] Revoke Twitch access in the provider/dashboard and confirm the service reports revocation, stops the worker, revokes local sessions, and pauses active games.
+- [ ] Open `/api/auth/twitch/start` from the selected browser origin. Confirm Twitch identifies the intended app and requests `user:read:chat` access.
+- [ ] Consent as the intended broadcaster. Browser navigation returns to `/connect?result=connected`; the HttpOnly session cookie and authenticated `GET /api/me` must agree. The result query alone never proves sign-in.
+- [ ] Check denied consent: HTML navigation returns to `/connect?result=denied`. Other fixed browser outcomes are `invalid`, `state_rejected`, `unavailable`, and `exchange_failed`; JSON clients retain JSON errors. Haiku must wire result copy without treating it as authentication.
+- [ ] Create and start Q01 through the authenticated API/host controls. Creation leaves it `READY`, not `ACTIVE`.
+- [ ] Inspect `/api/ops/diagnostics` for connection/subscription state. A connected label alone is not proof of real chat delivery.
+- [ ] With permission for this exact channel, send `!look CAM`, `!look SCHEDULE`, and `!link CAM_R07 SCHEDULE_R07` in real chat. Confirm persisted revisions and authorized Socket.IO updates. Submit a verdict only after proof exists.
+- [ ] Correlate a provider message ID with one stored receipt/revision. Replaying that same ID is a controlled harness test; sending another chat message creates a different provider ID and does not reproduce duplicate delivery.
+- [ ] Observe an actual refresh and a later real command. Observe a provider reconnect/handoff if it occurs; do not label a local simulation as provider evidence. See Twitch's [WebSocket lifecycle](https://dev.twitch.tv/docs/eventsub/handling-websocket-events/).
+- [ ] After active test sessions are ready to be paused, exercise the authorized disconnect/revoke flow. Confirm local sessions lose access, the worker stops, and active games pause. Reauthorize before other signed-in checks.
 
-## OBS Browser Source
+## Two-channel co-op
 
-- [ ] In OBS Studio on the streamer's desktop, add the authorized URL returned by the host session's overlay-credential endpoint.
-- [ ] Confirm the source renders transparently at the intended 1280×720 layout and shows a real state update from the test game.
-- [ ] Attempt a gameplay action from the overlay and confirm it is read-only; only the authenticated host dashboard or Twitch chat may mutate the game.
-- [ ] Rotate/revoke the overlay credential and confirm the old Browser Source loses access.
-- [ ] Restart OBS and confirm the configured source can reconnect and recover the current snapshot.
+- [ ] Record primary/partner channel usernames and both owners' consent. Obtain explicit permission before sending test messages to either channel. Never select or message an unrelated public channel automatically.
+- [ ] Sign in both real broadcasters with the same app in separate browser sessions. Verify each through `/api/me`; never export cookies or tokens.
+- [ ] Create a C01 invitation from the primary host; verify only the named invitee can accept. Check decline/expiry separately from the active accepted session.
+- [ ] Accept as the partner and start through the implemented host lifecycle. Confirm team-specific snapshots hide the other workstation's private evidence.
+- [ ] Process authorized real commands from both channels. Confirm independent progress, a shared breakthrough, attribution without duplicate credit, and the final proof/reveal.
+- [ ] Disconnect/rejoin one consenting host. Confirm pause/recovery behavior and rejection of an unrelated identity.
 
-## Evidence to attach before marking verified
+Use the exact [API and Socket.IO contracts](BACKEND_CONTRACTS.md). Frontend station previews and disabled lobby actions do not constitute a live co-op UI; Haiku owns that integration.
 
-- [ ] Redacted Render deploy/build log, service URL, commit identifier, and `/health/ready` response.
-- [ ] Redacted OAuth callback and `/api/me` evidence; never attach authorization codes, access/refresh tokens, cookies, or signing/encryption keys.
-- [ ] EventSub subscription status and timestamp of a real Twitch chat command, correlated with persisted revision and browser/OBS update.
-- [ ] OBS screenshot or recording from the actual desktop application, plus the read-only and credential-revocation checks.
+## OBS Studio Browser Source
 
-## External inputs and evidence still required
+- [ ] Open actual desktop OBS. Create a test scene/source without overwriting the streamer's production setup or starting a broadcast.
+- [ ] Issue an overlay credential as the authenticated host and privately configure the returned Browser Source URL. Never include its fragment token in shared evidence.
+- [ ] Verify transparent rendering at 1280 x 720, current snapshot recovery, and a visible real-chat update. A browser screenshot alone is not OBS evidence.
+- [ ] Confirm an overlay mutation is rejected: only authenticated host controls or authorized chat may mutate the game.
+- [ ] Revoke the test credential and confirm the old source loses access. Issue a replacement before later reconnect checks.
+- [ ] Restart/reload the test source and verify recovery without changing unrelated OBS configuration.
 
-- Select the intended Render workspace/service/database for authorized inspection; no connector workspace or resource state was queried in this pass.
-- Twitch app client ID/secret and an authorized broadcaster consent flow.
-- A deployed Render service/database and permission to update its environment or deploy it.
-- OBS Studio Browser Source access for the streamer desktop.
-- A real Twitch channel/chat session for EventSub delivery and reconnect checks.
+## Evidence and completion
+
+- [ ] Record the source commit, local origin/ports, timestamps, readiness response, and actual executed checks. Label synthetic data explicitly.
+- [ ] Retain only redacted identity results, chat receipt/revision correlation, team visibility, and actual OBS observations. Never retain secrets, authorization codes, cookies, or overlay credentials in reports.
+- [ ] Keep unexecuted/failed checks open with a concrete reason. Backend tests, fixtures, previews, and configuration validation do not replace real consent or OBS acceptance.
+- [ ] Hand signed-in frontend findings to Haiku. Do not mark unfinished controls complete because their endpoints pass.
+
+## Later deployment-only gates
+
+These items are outside the current before-deploy scope. The owner selected Andro's Render workspace and deferred Render API access.
+
+- [ ] Obtain deferred access and explicit deployment authorization; pin a reviewed commit with passing CI.
+- [ ] Verify the selected Singapore web service/private PostgreSQL target, private ingress, internal database URL, and HTTP readiness path.
+- [ ] Register the actual HTTPS production origin's `/api/auth/twitch/callback` in Twitch and the runtime. Keep application keys stable and privately recoverable.
+- [ ] Run production preflight, then verify actual deployment, migrations, readiness, assets, Socket.IO, provider behavior, and recovery on that remote target.
+
+Local and remote acceptance remain separate records. No deployment or production restore drill is claimed here.

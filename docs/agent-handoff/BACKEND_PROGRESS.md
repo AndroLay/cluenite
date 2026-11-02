@@ -1,5 +1,18 @@
 # Backend execution progress
 
+## Private configuration follow-up - 2 November 2026
+
+The user asked to finish the remaining preparation and real integration checks, while frontend implementation stays with Haiku and deployment remains excluded.
+
+- Created the previously empty `SESSION_SIGNING_SECRET`, `DATA_ENCRYPTION_KEY`, and `OVERLAY_TOKEN_SIGNING_KEY` in the ignored root `.env`, using three independent 32-byte random draws. Preserved every existing nonempty setting. No values were printed, logged, or committed, and no existing credential was rotated.
+- Before creation, a read-only query confirmed zero Twitch accounts in the local application's `public.twitch_accounts` table. No application rows were changed or deleted.
+- The resulting development configuration parses; an encryption/decryption round trip using the actual application helpers passes. Production preflight remains correctly invalid: Twitch client ID, client secret, and callback are missing. An actual HTTPS production origin must also be validated when a later remote target exists.
+- Fresh browser inventory still reports both native-pipe and browser-host unavailability. Zen processes alone do not provide control access. The owner selected reconnecting Zen; no Twitch registration, token acquisition, or real consent was performed.
+- The owner has not supplied a consenting partner channel. No chat messages were sent, no partner was invented, and no OBS process was observed. Real Twitch, two-channel co-op, actual OBS, and signed-in frontend acceptance remain open.
+- Reconciled the [real integration checklist](TWITCH_EVENTSUB_CHECKLIST.md): local preparation and provider/OBS acceptance are distinct from later Render deployment. Removed the obsolete Tailwind dependency blocker and documented current OAuth outcomes and the exact duplicate-message evidence boundary.
+
+This pass changes private local configuration and integration documentation only. The previously published 110-test CI result remains source evidence, not a newly executed real-provider test. No shared API process was restarted; running processes still need an owned, verified restart before using the saved keys.
+
 ## Backend completion before deploy - 2 November 2026
 
 Latest scope: finish non-frontend implementation and predeploy preparation; **do not deploy**. Haiku's frontend and active frontend/reference/architecture handoffs remain separate. The implementation and operator policy are in the [predeploy guide](../operations/BACKEND_PREDEPLOY_2026-11-02.md).
